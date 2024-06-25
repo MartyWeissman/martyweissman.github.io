@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shark and Tuna Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+        }
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(50, 10px);
+            width: 500px;
+            height: 500px;
+            border: 1px solid black;
+            margin-top: 20px;
+            background-color: lightblue;
+        }
+        .cell {
+            width: 10px;
+            height: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            position: relative;
+        }
+        .emoji {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .highlighted::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 14px;
+            height: 14px;
+            border: 2px solid darkred;
+            border-radius: 50%;
+        }
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Shark and Tuna Simulator</h1>
+    <div>
+        <label for="sharks">Number of Sharks (1-200):</label>
+        <input type="number" id="sharks" min="1" max="200" value="10">
+    </div>
+    <div>
+        <label for="tuna">Number of Tuna (1-200):</label>
+        <input type="number" id="tuna" min="1" max="200" value="50">
+    </div>
+    <button onclick="placeAnimals()">Place</button>
+    <div id="grid"></div>
+    <div id="result"></div>
+
+    <script>
+        const grid = document.getElementById('grid');
+        const result = document.getElementById('result');
+        const cells = [];
+
+        // Create the 50x50 grid
+        for (let i = 0; i < 2500; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            grid.appendChild(cell);
+            cells.push(cell);
+        }
+
+        function placeAnimals() {
+            // Reset the grid
+            cells.forEach(cell => {
+                cell.className = 'cell';
+                cell.innerHTML = '';
+            });
+
+            const sharks = parseInt(document.getElementById('sharks').value);
+            const tuna = parseInt(document.getElementById('tuna').value);
+
+            if (isNaN(sharks) || isNaN(tuna) || sharks < 1 || sharks > 200 || tuna < 1 || tuna > 200) {
+                alert("Please enter valid numbers between 1 and 200 for sharks and tuna.");
+                return;
+            }
+
+            if (sharks + tuna > 2500) {
+                alert("The total number of sharks and tuna cannot exceed 2500.");
+                return;
+            }
+
+            // Place sharks
+            placeRandomly('🦈', sharks);
+
+            // Place tuna
+            placeRandomly('🐟', tuna);
+
+            // Highlight tuna near sharks after a 1-second delay
+            setTimeout(highlightTuna, 1000);
+        }
+
+        function placeRandomly(emoji, count) {
+            for (let i = 0; i < count; i++) {
+                let cell;
+                do {
+                    cell = cells[Math.floor(Math.random() * 2500)];
+                } while (cell.innerHTML !== '');
+                cell.innerHTML = `<span class="emoji">${emoji}</span>`;
+            }
+        }
+
+        function highlightTuna() {
+            let eatenCount = 0;
+            for (let i = 0; i < 2500; i++) {
+                if (cells[i].textContent === '🐟') {
+                    const neighbors = getNeighbors(i);
+                    if (neighbors.some(n => cells[n].textContent === '🦈')) {
+                        cells[i].classList.add('highlighted');
+                        eatenCount++;
+                    }
+                }
+            }
+            result.textContent = `${eatenCount} tuna are eaten.`;
+        }
+
+        function getNeighbors(index) {
+            const row = Math.floor(index / 50);
+            const col = index % 50;
+            const neighbors = [];
+
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    if (i === 0 && j === 0) continue;
+                    const newRow = row + i;
+                    const newCol = col + j;
+                    if (newRow >= 0 && newRow < 50 && newCol >= 0 && newCol < 50) {
+                        neighbors.push(newRow * 50 + newCol);
+                    }
+                }
+            }
+
+            return neighbors;
+        }
+    </script>
+</body>
+</html>
