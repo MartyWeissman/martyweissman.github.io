@@ -136,7 +136,7 @@
                 </div>
                 <div class="input-item">
                     <label for="speed">Simulation Speed:</label>
-                    <input type="range" id="speed" min="0" max="4" value="4">
+                    <input type="range" id="speed" min="0" max="4" value="2">
                 </div>
             </div>
             <div class="button-group">
@@ -144,6 +144,7 @@
                 <button id="killTuna" onclick="killPopulation('tuna')">Kill 10 Tuna</button>
                 <button id="killSharks" onclick="killPopulation('sharks')">Kill 10 Sharks</button>
             </div>
+            <p style="text-align: center; margin-top: 10px;">Click on vector field to start a trajectory.</p>
         </div>
     </div>
     <div id="error" style="color: red;"></div>
@@ -161,7 +162,7 @@
         let time = 0;
         let populationData = [];
         let animationId = null;
-        let speed = 4;
+        let speed = 2;
 
         const drawingArea = {
             x: 50,
