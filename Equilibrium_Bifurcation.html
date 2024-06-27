@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stability and Bifurcation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+        }
+        h1 {
+            width: 100%;
+            text-align: center;
+        }
+        .plot-container {
+            display: flex;
+        }
+        .left-plot {
+            width: 600px;
+            height: 600px;
+        }
+        .right-side {
+            margin-left: 20px;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        .right-plot {
+            width: 600px;
+            height: 300px;
+        }
+        input, button {
+            margin: 5px 0;
+            padding: 5px;
+        }
+        label {
+            display: inline-block;
+            width: 100px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stability and Bifurcation</h1>
+    <div class="plot-container">
+        <canvas id="leftPlot" class="left-plot"></canvas>
+        <div class="right-side">
+            <div class="controls">
+                <label for="r">r:</label>
+                <input type="number" id="r" value="0.3" min="0" max="1" step="0.01"><br>
+                <label for="inflow">inflow(x):</label>
+                <input type="text" id="inflow" value="x**2 / (1 + x**2)"><br>
+                <label for="outflow">outflow(x):</label>
+                <input type="text" id="outflow" value="r*x"><br>
+                <button id="plotSolutions">Plot solutions</button>
+            </div>
+            <canvas id="rightPlot" class="right-plot"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const leftPlot = document.getElementById('leftPlot');
+        const rightPlot = document.getElementById('rightPlot');
+        const rInput = document.getElementById('r');
+        const inflowInput = document.getElementById('inflow');
+        const outflowInput = document.getElementById('outflow');
+        const plotSolutionsButton = document.getElementById('plotSolutions');
+
+        leftPlot.width = 600;
+        leftPlot.height = 600;
+        rightPlot.width = 600;
+        rightPlot.height = 300;
+
+        const leftCtx = leftPlot.getContext('2d');
+        const rightCtx = rightPlot.getContext('2d');
+
+        function evaluateFunction(func, x, r) {
+            return new Function('x', 'r', `return ${func}`)(x, r);
+        }
+
+        function findEquilibriumPoints(inflow, outflow, r) {
+            const points = [];
+            const step = 0.001;
+            let prevDiff = evaluateFunction(inflow, 0, r) - evaluateFunction(outflow, 0, r);
+
+            for (let x = step; x <= 12; x += step) {
+                const currDiff = evaluateFunction(inflow, x, r) - evaluateFunction(outflow, x, r);
+                if (prevDiff * currDiff <= 0) {
+                    // Root found, use bisection to refine
+                    let left = x - step;
+                    let right = x;
+                    for (let i = 0; i < 20; i++) {
+                        const mid = (left + right) / 2;
+                        const midDiff = evaluateFunction(inflow, mid, r) - evaluateFunction(outflow, mid, r);
+                        if (Math.abs(midDiff) < 1e-8) {
+                            points.push(Number(mid.toFixed(4)));
+                            break;
+                        }
+                        if (midDiff * currDiff <= 0) {
+                            left = mid;
+                        } else {
+                            right = mid;
+                        }
+                    }
+                }
+                prevDiff = currDiff;
+            }
+            return points;
+        }
+
+        function drawRightPlot(inflow, outflow, r) {
+            rightCtx.clearRect(0, 0, 600, 300);
+
+            // Draw axes
+            rightCtx.beginPath();
+            rightCtx.strokeStyle = 'black';
+            rightCtx.moveTo(50, 250);
+            rightCtx.lineTo(550, 250);
+            rightCtx.moveTo(50, 250);
+            rightCtx.lineTo(50, 50);
+            rightCtx.stroke();
+
+            // Draw tick marks and labels
+            rightCtx.font = '12px Arial';
+            rightCtx.fillStyle = 'black';
+            rightCtx.textAlign = 'center';
+            for (let i = 0; i <= 12; i += 3) {
+                const x = 50 + (i / 12) * 500;
+                rightCtx.moveTo(x, 250);
+                rightCtx.lineTo(x, 255);
+                rightCtx.fillText(i.toString(), x, 270);
+            }
+            rightCtx.textAlign = 'right';
+            for (let i = 0; i <= 3; i++) {
+                const y = 250 - (i / 3) * 200;
+                rightCtx.moveTo(45, y);
+                rightCtx.lineTo(50, y);
+                rightCtx.fillText(i.toString(), 40, y + 5);
+            }
+            rightCtx.stroke();
+
+            // Plot inflow function
+            rightCtx.beginPath();
+            rightCtx.strokeStyle = 'green';
+            for (let x = 0; x <= 12; x += 0.1) {
+                const y = evaluateFunction(inflow, x, r);
+                const plotX = 50 + (x / 12) * 500;
+                const plotY = 250 - (y / 3) * 200;
+                if (x === 0) rightCtx.moveTo(plotX, plotY);
+                else rightCtx.lineTo(plotX, plotY);
+            }
+            rightCtx.stroke();
+
+            // Plot outflow function
+            rightCtx.beginPath();
+            rightCtx.strokeStyle = 'red';
+            for (let x = 0; x <= 12; x += 0.1) {
+                const y = evaluateFunction(outflow, x, r);
+                const plotX = 50 + (x / 12) * 500;
+                const plotY = 250 - (y / 3) * 200;
+                if (x === 0) rightCtx.moveTo(plotX, plotY);
+                else rightCtx.lineTo(plotX, plotY);
+            }
+            rightCtx.stroke();
+
+            // Mark and label equilibrium points
+            const equilibriumPoints = findEquilibriumPoints(inflow, outflow, r);
+            rightCtx.fillStyle = 'blue';
+            rightCtx.strokeStyle = 'blue';
+            rightCtx.textAlign = 'center';
+            for (const x of equilibriumPoints) {
+                const plotX = 50 + (x / 12) * 500;
+                const plotY = 250 - (evaluateFunction(inflow, x, r) / 3) * 200;
+
+                // Draw point
+                rightCtx.beginPath();
+                rightCtx.arc(plotX, plotY, 4, 0, 2 * Math.PI);
+                rightCtx.fill();
+
+                // Draw tick mark
+                rightCtx.beginPath();
+                rightCtx.moveTo(plotX, 250);
+                rightCtx.lineTo(plotX, 260);
+                rightCtx.stroke();
+
+                // Label tick mark
+                rightCtx.fillText(x.toFixed(2), plotX, 275);
+            }
+
+            return equilibriumPoints;
+        }
+
+        function drawLeftPlot(inflow, outflow, r, equilibriumPoints) {
+            leftCtx.clearRect(0, 0, 600, 600);
+
+            // Draw axes
+            leftCtx.beginPath();
+            leftCtx.strokeStyle = 'black';
+            leftCtx.moveTo(50, 550);
+            leftCtx.lineTo(550, 550);
+            leftCtx.moveTo(50, 550);
+            leftCtx.lineTo(50, 50);
+            leftCtx.stroke();
+
+            // Draw tick marks and labels
+            leftCtx.font = '12px Arial';
+            leftCtx.fillStyle = 'black';
+            leftCtx.textAlign = 'center';
+            for (let i = 0; i <= 40; i += 10) {
+                const x = 50 + (i / 40) * 500;
+                leftCtx.moveTo(x, 550);
+                leftCtx.lineTo(x, 555);
+                leftCtx.fillText(i.toString(), x, 570);
+            }
+            leftCtx.textAlign = 'right';
+            for (let i = 0; i <= 12; i += 3) {
+                const y = 550 - (i / 12) * 500;
+                leftCtx.moveTo(45, y);
+                leftCtx.lineTo(50, y);
+                leftCtx.fillText(i.toString(), 40, y + 5);
+            }
+            leftCtx.stroke();
+
+            // Draw and label equilibrium lines
+            leftCtx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+            leftCtx.fillStyle = 'blue';
+            leftCtx.lineWidth = 1;
+            leftCtx.textAlign = 'right';
+            for (const x of equilibriumPoints) {
+                const y = 550 - (x / 12) * 500;
+                leftCtx.beginPath();
+                leftCtx.moveTo(50, y);
+                leftCtx.lineTo(550, y);
+                leftCtx.stroke();
+                leftCtx.fillText(x.toFixed(2), 545, y - 5);
+            }
+
+            // Plot solutions
+            const initialConditions = Array.from({length: 25}, (_, i) => i * 0.5);
+            leftCtx.strokeStyle = 'brown';
+
+            for (const initialCondition of initialConditions) {
+                leftCtx.beginPath();
+                let x = initialCondition;
+                for (let t = 0; t <= 40; t += 0.1) {
+                    const dx = evaluateFunction(inflow, x, r) - evaluateFunction(outflow, x, r);
+                    x += dx * 0.1;
+                    const plotX = 50 + (t / 40) * 500;
+                    const plotY = 550 - (x / 12) * 500;
+                    if (t === 0) leftCtx.moveTo(plotX, plotY);
+                    else leftCtx.lineTo(plotX, plotY);
+                }
+                leftCtx.stroke();
+            }
+        }
+
+        function updateRightPlot() {
+            const r = parseFloat(rInput.value);
+            const inflow = inflowInput.value;
+            const outflow = outflowInput.value;
+            return drawRightPlot(inflow, outflow, r);
+        }
+
+        function plotSolutions() {
+            const r = parseFloat(rInput.value);
+            const inflow = inflowInput.value;
+            const outflow = outflowInput.value;
+            const equilibriumPoints = updateRightPlot();
+            drawLeftPlot(inflow, outflow, r, equilibriumPoints);
+        }
+
+        rInput.addEventListener('input', updateRightPlot);
+        plotSolutionsButton.addEventListener('click', plotSolutions);
+
+        // Initial plots
+        const initialEquilibriumPoints = updateRightPlot();
+        drawLeftPlot(inflowInput.value, outflowInput.value, parseFloat(rInput.value), initialEquilibriumPoints);
+    </script>
+</body>
+</html>
