@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insulin-Glucose Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            display: flex;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .chart-container {
+            width: 800px;
+            height: 600px;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            margin-left: 20px;
+            width: 200px;
+        }
+        .input-group {
+            margin-bottom: 10px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #glucoseChallenge {
+            background-color: #f44336;
+        }
+        #glucoseChallenge:hover {
+            background-color: #d32f2f;
+        }
+        .attribution {
+            position: absolute;
+            bottom: 5px;
+            right: 10px;
+            font-size: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chart-container">
+            <canvas id="chart" width="800" height="600"></canvas>
+        </div>
+        <div class="controls">
+            <h2>Parameters</h2>
+            <div class="input-group">
+                <label for="m">Glucose production (m)</label>
+                <input type="number" id="m" value="0.5" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="s">Insulin sensitivity (s)</label>
+                <input type="number" id="s" value="1" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="q">Insulin production rate (q)</label>
+                <input type="number" id="q" value="1" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="B">Beta cell mass (B)</label>
+                <input type="number" id="B" value="1" step="0.1">
+            </div>
+            <div class="input-group">
+                <label for="gamma">Insulin degradation rate (γ)</label>
+                <input type="number" id="gamma" value="1" step="0.1">
+            </div>
+            <button onclick="simulate(false)">Simulate</button>
+            <button id="glucoseChallenge" onclick="simulate(true)">Glucose Challenge</button>
+        </div>
+        <div class="attribution">
+            Based on Exercise 1.6 and the minimal model presented by Uri Alon, in <i>Systems Medicine</i>.
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('chart');
+        const ctx = canvas.getContext('2d');
+
+        function simulate(isGlucoseChallenge) {
+            const m = parseFloat(document.getElementById('m').value);
+            const s = parseFloat(document.getElementById('s').value);
+            const q = parseFloat(document.getElementById('q').value);
+            const B = parseFloat(document.getElementById('B').value);
+            const gamma = parseFloat(document.getElementById('gamma').value);
+
+            const dt = 0.1;
+            const tMax = 20;
+            const steps = tMax / dt;
+
+            let G = 1; // Initial glucose concentration
+            let I = 0.5; // Initial insulin concentration
+
+            const tData = [];
+            const GData = [];
+            const IData = [];
+
+            for (let i = 0; i <= steps; i++) {
+                const t = i * dt;
+                tData.push(t);
+                GData.push(G * 5); // Convert to mmol/L
+                IData.push(I * 6); // Convert to pmol/L
+
+                // Hill equation
+                const f = (G * G) / (1 + G * G);
+
+                // Glucose production with challenge if activated
+                let mEffective = m;
+                if (isGlucoseChallenge) {
+                    mEffective += Math.exp(-Math.pow(t - 5, 2));
+                }
+
+                // Update G and I using Euler's method
+                const dGdt = mEffective - s * I * G;
+                const dIdt = q * B * f - gamma * I;
+
+                G += dGdt * dt;
+                I += dIdt * dt;
+            }
+
+            drawChart(tData, GData, IData, isGlucoseChallenge);
+        }
+
+        function drawChart(tData, GData, IData, isGlucoseChallenge) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw title
+            ctx.font = '24px Arial';
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'center';
+            ctx.fillText('Insulin-Glucose Simulator', canvas.width / 2, 30);
+
+            // Set up chart dimensions
+            const chartLeft = 80;
+            const chartRight = 750;
+            const chartTop = 50;
+            const chartBottom = 550;
+            const chartWidth = chartRight - chartLeft;
+            const chartHeight = chartBottom - chartTop;
+
+            // Set up scales
+            const maxG = 25; // mmol/L
+            const maxI = 36; // pmol/L
+
+            // Draw background grid
+            ctx.strokeStyle = 'lightgray';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 20; i++) {
+                const x = chartLeft + (i / 20) * chartWidth;
+                ctx.beginPath();
+                ctx.moveTo(x, chartTop);
+                ctx.lineTo(x, chartBottom);
+                ctx.stroke();
+            }
+
+            // Draw axes
+            ctx.beginPath();
+            ctx.moveTo(chartLeft, chartBottom);
+            ctx.lineTo(chartRight, chartBottom);
+            ctx.moveTo(chartLeft, chartBottom);
+            ctx.lineTo(chartLeft, chartTop);
+            ctx.moveTo(chartRight, chartBottom);
+            ctx.lineTo(chartRight, chartTop);
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Draw tick marks and labels for Glucose axis (left)
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i <= maxG; i++) {
+                const y = chartBottom - (i / maxG) * chartHeight;
+                ctx.beginPath();
+                ctx.moveTo(chartLeft - 5, y);
+                ctx.lineTo(chartLeft, y);
+                ctx.stroke();
+                if (i % 5 === 0) {
+                    ctx.fillText(i.toString(), chartLeft - 8, y);
+                }
+            }
+
+            // Draw tick marks and labels for Insulin axis (right)
+            ctx.textAlign = 'left';
+            for (let i = 0; i <= maxI; i++) {
+                const y = chartBottom - (i / maxI) * chartHeight;
+                ctx.beginPath();
+                ctx.moveTo(chartRight, y);
+                ctx.lineTo(chartRight + 5, y);
+                ctx.stroke();
+                if (i % 6 === 0) {
+                    ctx.fillText(i.toString(), chartRight + 8, y);
+                }
+            }
+
+            // Draw tick marks and labels for Time axis (bottom)
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            for (let i = 0; i <= 20; i++) {
+                const x = chartLeft + (i / 20) * chartWidth;
+                ctx.beginPath();
+                ctx.moveTo(x, chartBottom);
+                ctx.lineTo(x, chartBottom + 5);
+                ctx.stroke();
+                if (i % 5 === 0) {
+                    ctx.fillText(i.toString(), x, chartBottom + 8);
+                }
+            }
+
+            // Draw axis labels
+            ctx.font = '16px Arial';
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'center';
+            ctx.fillText('Time (hours)', (chartLeft + chartRight) / 2, chartBottom + 35);
+
+            ctx.save();
+            ctx.translate(20, (chartTop + chartBottom) / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('Glucose concentration (mmol/L)', 0, 0);
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(canvas.width - 20, (chartTop + chartBottom) / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('Insulin concentration (pmol/L)', 0, 0);
+            ctx.restore();
+
+            // Draw glucose line
+            ctx.beginPath();
+            ctx.moveTo(chartLeft, chartBottom - Math.min(GData[0], maxG) / maxG * chartHeight);
+            for (let i = 1; i < tData.length; i++) {
+                ctx.lineTo(chartLeft + (i / tData.length) * chartWidth,
+                           chartBottom - Math.min(GData[i], maxG) / maxG * chartHeight);
+            }
+            ctx.strokeStyle = 'rgb(255, 99, 132)';
+            ctx.stroke();
+
+            // Draw insulin line
+            ctx.beginPath();
+            ctx.moveTo(chartLeft, chartBottom - Math.min(IData[0], maxI) / maxI * chartHeight);
+            for (let i = 1; i < tData.length; i++) {
+                ctx.lineTo(chartLeft + (i / tData.length) * chartWidth,
+                           chartBottom - Math.min(IData[i], maxI) / maxI * chartHeight);
+            }
+            ctx.strokeStyle = 'rgb(54, 162, 235)';
+            ctx.stroke();
+
+            // Draw legend
+            ctx.font = '14px Arial';
+            ctx.fillStyle = 'rgb(255, 99, 132)';
+            ctx.fillRect(chartRight - 120, chartTop, 20, 20);
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'left';
+            ctx.fillText('Glucose (G)', chartRight - 95, chartTop + 15);
+
+            ctx.fillStyle = 'rgb(54, 162, 235)';
+            ctx.fillRect(chartRight - 120, chartTop + 25, 20, 20);
+            ctx.fillStyle = 'black';
+            ctx.fillText('Insulin (I)', chartRight - 95, chartTop + 40);
+
+            // Indicate if it's a glucose challenge
+            if (isGlucoseChallenge) {
+                ctx.font = '14px Arial';
+                ctx.fillStyle = 'red';
+                ctx.textAlign = 'center';
+                const challengeX = chartLeft + (5 / 20) * chartWidth; // x-position for t=5
+                ctx.fillText('Glucose Challenge Active', challengeX, chartBottom - 15);
+            }
+        }
+
+        // Initial simulation
+        simulate(false);
+    </script>
+</body>
+</html>
