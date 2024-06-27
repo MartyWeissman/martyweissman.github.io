@@ -41,6 +41,12 @@
             display: inline-block;
             width: 100px;
         }
+        .green-text {
+            color: green;
+        }
+        .red-text {
+            color: red;
+        }
     </style>
 </head>
 <body>
@@ -51,9 +57,9 @@
             <div class="controls">
                 <label for="r">r:</label>
                 <input type="number" id="r" value="0.3" min="0" max="1" step="0.01"><br>
-                <label for="inflow">inflow(x):</label>
+                <label for="inflow" class="green-text">inflow(x):</label>
                 <input type="text" id="inflow" value="x**2 / (1 + x**2)"><br>
-                <label for="outflow">outflow(x):</label>
+                <label for="outflow" class="red-text">outflow(x):</label>
                 <input type="text" id="outflow" value="r*x"><br>
                 <button id="plotSolutions">Plot solutions</button>
             </div>
@@ -190,6 +196,22 @@
                 rightCtx.fillText(x.toFixed(2), plotX, 275);
             }
 
+            // Add axis labels
+            rightCtx.font = '14px Arial';
+            rightCtx.fillStyle = 'black';
+            rightCtx.textAlign = 'center';
+            rightCtx.fillText('X', 300, 290);
+
+            rightCtx.save();
+            rightCtx.translate(20, 150);
+            rightCtx.rotate(-Math.PI / 2);
+            rightCtx.fillText('Change in X', 0, 0);
+            rightCtx.restore();
+
+            // Add graph title
+            rightCtx.font = '16px Arial';
+            rightCtx.fillText('Graphs of inflow(X) and outflow(X)', 300, 30);
+
             return equilibriumPoints;
         }
 
@@ -255,6 +277,22 @@
                 }
                 leftCtx.stroke();
             }
+
+            // Add axis labels
+            leftCtx.font = '14px Arial';
+            leftCtx.fillStyle = 'black';
+            leftCtx.textAlign = 'center';
+            leftCtx.fillText('Time (t)', 300, 590);
+
+            leftCtx.save();
+            leftCtx.translate(20, 300);
+            leftCtx.rotate(-Math.PI / 2);
+            leftCtx.fillText('X', 0, 0);
+            leftCtx.restore();
+
+            // Add graph title
+            leftCtx.font = '16px Arial';
+            leftCtx.fillText("Solutions to X' = inflow(X) - outflow(X)", 300, 30);
         }
 
         function updateRightPlot() {
