@@ -13,14 +13,29 @@
         }
         .container {
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            flex-direction: row;
+            align-items: flex-start;
+            justify-content: center;
+        }
+        .sidebar {
+            margin-left: 20px;
+            width: 100%;
+            max-width: 500px;
         }
         .simulator-container {
             display: flex;
             flex-direction: column;
             align-items: center;
         }
+        .equations {
+            text-align: center;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            font-family: "Times New Roman", Times, serif;
+        }
+.equations p {
+    margin: 5px 0;
+}
         h1 {
             text-align: center;
             width: 500px;
@@ -75,48 +90,48 @@
             background-color: orange;
             color: white;
         }
-        @media (min-width: 1024px) {
+        @media (max-width: 1023px) {
             .container {
-                flex-direction: row;
-                align-items: flex-start;
-                justify-content: center;
+                flex-direction: column;
+                align-items: center;
             }
-            .simulator-container {
-                margin-right: 20px;
+            .sidebar {
+                margin-left: 0;
+                margin-top: 20px;
             }
-            canvas {
-                width: 500px;
-            }
-            #controls {
-                margin-top: 42px;
-            }
+        }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="simulator-container">
-            <h1>Shark Tuna Trajectories</h1>
-            <canvas id="vectorField" width="500" height="500"></canvas>
-            <canvas id="populationGraph" width="500" height="200"></canvas>
-        </div>
-        <div id="controls">
+  <div class="container">
+      <div class="simulator-container">
+          <h1>Shark Tuna Trajectories</h1>
+          <canvas id="vectorField" width="500" height="500"></canvas>
+          <canvas id="populationGraph" width="500" height="200"></canvas>
+      </div>
+      <div class="sidebar">
+          <div class="equations">
+              <p>S′ = -δS + pST</p>
+              <p>T′ = βT - qST</p>
+          </div>
+          <div id="controls">
             <div class="input-group">
                 <div class="input-item">
-                    <label for="gridSize">Grid Size:</label>
-                    <input type="number" id="gridSize" min="10" max="50" value="15">
+                    <label for="p">Interaction coeff (p):</label>
+                    <input type="number" id="p" value="0.03" step="0.01">
                 </div>
                 <div class="input-item">
-                    <label for="beta">Interaction coeff (β):</label>
-                    <input type="number" id="beta" value="0.04" step="0.01">
+                    <label for="q">Interaction coeff (q):</label>
+                    <input type="number" id="q" value="0.04" step="0.01">
                 </div>
                 <div class="input-item">
-                    <label for="b">Tuna birth rate (b):</label>
-                    <input type="number" id="b" value="0.6" step="0.1">
+                    <label for="beta">Tuna birth rate (β):</label>
+                    <input type="number" id="beta" value="0.6" step="0.1">
                 </div>
                 <div class="input-item">
-                    <label for="d">Shark death rate (d):</label>
-                    <input type="number" id="d" value="0.4" step="0.1">
+                    <label for="delta">Shark death rate (δ):</label>
+                    <input type="number" id="delta" value="0.4" step="0.1">
                 </div>
                 <div class="input-item">
                     <label for="smin">Smin:</label>
@@ -155,8 +170,9 @@
         const vfCtx = vectorField.getContext('2d');
         const pgCtx = populationGraph.getContext('2d');
         const errorDiv = document.getElementById('error');
+        const GRID_SIZE = 15;
 
-        let beta, b, d;
+        let p, q, beta, delta;
         let smin, smax, tmin, tmax;
         let particle = null;
         let time = 0;
@@ -172,10 +188,11 @@
         };
 
         function resetSimulation() {
-            const gridSize = parseInt(document.getElementById('gridSize').value);
+
+            p = parseFloat(document.getElementById('p').value);
+            q = parseFloat(document.getElementById('q').value);
             beta = parseFloat(document.getElementById('beta').value);
-            b = parseFloat(document.getElementById('b').value);
-            d = parseFloat(document.getElementById('d').value);
+            delta = parseFloat(document.getElementById('delta').value);
             smin = parseFloat(document.getElementById('smin').value);
             smax = parseFloat(document.getElementById('smax').value);
             tmin = parseFloat(document.getElementById('tmin').value);
@@ -204,6 +221,27 @@
             vfCtx.lineTo(drawingArea.x + drawingArea.width, drawingArea.y + drawingArea.height);
             vfCtx.stroke();
 
+            // Add tick marks
+                vfCtx.lineWidth = 1;
+
+                // X-axis (Sharks)
+                for (let i = 10; i <= 50; i += 10) {
+                    const x = drawingArea.x + (i / smax) * drawingArea.width;
+                    vfCtx.beginPath();
+                    vfCtx.moveTo(x, drawingArea.y + drawingArea.height);
+                    vfCtx.lineTo(x, drawingArea.y + drawingArea.height + 5);
+                    vfCtx.stroke();
+                }
+
+                // Y-axis (Tuna)
+                for (let i = 10; i <= 50; i += 10) {
+                    const y = drawingArea.y + drawingArea.height - (i / tmax) * drawingArea.height;
+                    vfCtx.beginPath();
+                    vfCtx.moveTo(drawingArea.x - 5, y);
+                    vfCtx.lineTo(drawingArea.x, y);
+                    vfCtx.stroke();
+                }
+                
             // Label axes
             vfCtx.font = '14px Arial';
             vfCtx.fillStyle = 'black';
@@ -223,19 +261,18 @@
             vfCtx.fillText(tmin.toFixed(0), drawingArea.x - 25, drawingArea.y + drawingArea.height + 5);
             vfCtx.fillText(tmax.toFixed(0), drawingArea.x - 25, drawingArea.y + 5);
 
-            const gridSize = 20;
             const arrowSize = 10;
 
             vfCtx.strokeStyle = 'rgba(255, 0, 0, 0.6)';
             vfCtx.fillStyle = 'rgba(255, 0, 0, 0.6)';
 
-            for (let i = 0; i <= gridSize; i++) {
-                for (let j = 0; j <= gridSize; j++) {
-                    const s = smin + (i / gridSize) * (smax - smin);
-                    const t = tmin + (j / gridSize) * (tmax - tmin);
+            for (let i = 0; i <= GRID_SIZE; i++) {
+                for (let j = 0; j <= GRID_SIZE; j++) {
+                    const s = smin + (i / GRID_SIZE) * (smax - smin);
+                    const t = tmin + (j / GRID_SIZE) * (tmax - tmin);
 
-                    const ds = beta * s * t - d * s;
-                    const dt = b * t - beta * s * t;
+                    const ds = -delta * s + p * s * t;
+                    const dt = beta * t - q * s * t;
 
                     const magnitude = Math.sqrt(ds * ds + dt * dt);
                     if (magnitude === 0) continue;
@@ -267,194 +304,195 @@
                 drawParticle();
             }
         }
+
         function createParticle(canvasX, canvasY) {
-                    const s = smin + ((canvasX - drawingArea.x) / drawingArea.width) * (smax - smin);
-                    const t = tmax - ((canvasY - drawingArea.y) / drawingArea.height) * (tmax - tmin);
-                    particle = { s: s, t: t, trail: [] };
-                    time = 0;
-                    populationData = [];
-                    if (animationId) {
-                        cancelAnimationFrame(animationId);
-                    }
-                    animateParticle();
+            const s = smin + ((canvasX - drawingArea.x) / drawingArea.width) * (smax - smin);
+            const t = tmax - ((canvasY - drawingArea.y) / drawingArea.height) * (tmax - tmin);
+            particle = { s: s, t: t, trail: [] };
+            time = 0;
+            populationData = [];
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            animateParticle();
+        }
+
+        function animateParticle() {
+            if (speed === 0) {
+                return;
+            }
+
+            const h = 0.1; // Step size
+
+            function f(s, t) {
+                return [
+                    -delta * s + p * s * t,  // ds/dt
+                    beta * t - q * s * t     // dt/dt
+                ];
+            }
+
+            // RK4 method
+            let [s, t] = [particle.s, particle.t];
+            let k1 = f(s, t);
+            let k2 = f(s + h*k1[0]/2, t + h*k1[1]/2);
+            let k3 = f(s + h*k2[0]/2, t + h*k2[1]/2);
+            let k4 = f(s + h*k3[0], t + h*k3[1]);
+
+            particle.s += (h/6) * (k1[0] + 2*k2[0] + 2*k3[0] + k4[0]);
+            particle.t += (h/6) * (k1[1] + 2*k2[1] + 2*k3[1] + k4[1]);
+
+            particle.trail.push({ s: particle.s, t: particle.t });
+            populationData.push({ time: time, s: particle.s, t: particle.t });
+
+            time += h;
+
+            drawVectorField();
+            drawPopulationGraph();
+
+            const delay = (4 - speed) * 50; // 0ms for speed 4, 200ms for speed 0
+            animationId = setTimeout(() => {
+                requestAnimationFrame(animateParticle);
+            }, delay);
+        }
+
+        function drawParticle() {
+            vfCtx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+            vfCtx.lineWidth = 2;
+
+            vfCtx.beginPath();
+            particle.trail.forEach((point, index) => {
+                const canvasS = drawingArea.x + ((point.s - smin) / (smax - smin)) * drawingArea.width;
+                const canvasT = drawingArea.y + drawingArea.height - ((point.t - tmin) / (tmax - tmin)) * drawingArea.height;
+
+                if (index === 0) {
+                    vfCtx.moveTo(canvasS, canvasT);
+                } else {
+                    vfCtx.lineTo(canvasS, canvasT);
                 }
+            });
+            vfCtx.stroke();
 
-                function animateParticle() {
-                    if (speed === 0) {
-                        return;
+            // Draw the particle
+            const canvasS = drawingArea.x + ((particle.s - smin) / (smax - smin)) * drawingArea.width;
+            const canvasT = drawingArea.y + drawingArea.height - ((particle.t - tmin) / (tmax - tmin)) * drawingArea.height;
+                        vfCtx.fillStyle = 'darkblue';
+                        vfCtx.beginPath();
+                        vfCtx.arc(canvasS, canvasT, 4, 0, 2 * Math.PI);
+                        vfCtx.fill();
                     }
 
-                    const h = 0.1; // Step size
+                    function drawPopulationGraph() {
+                        pgCtx.clearRect(0, 0, populationGraph.width, populationGraph.height);
 
-                    function f(s, t) {
-                        return [
-                            beta * s * t - d * s,  // ds/dt
-                            b * t - beta * s * t   // dt/dt
-                        ];
-                    }
-
-                    // RK4 method
-                    let [s, t] = [particle.s, particle.t];
-                    let k1 = f(s, t);
-                    let k2 = f(s + h*k1[0]/2, t + h*k1[1]/2);
-                    let k3 = f(s + h*k2[0]/2, t + h*k2[1]/2);
-                    let k4 = f(s + h*k3[0], t + h*k3[1]);
-
-                    particle.s += (h/6) * (k1[0] + 2*k2[0] + 2*k3[0] + k4[0]);
-                    particle.t += (h/6) * (k1[1] + 2*k2[1] + 2*k3[1] + k4[1]);
-
-                    particle.trail.push({ s: particle.s, t: particle.t });
-                    populationData.push({ time: time, s: particle.s, t: particle.t });
-
-                    time += h;
-
-                    drawVectorField();
-                    drawPopulationGraph();
-
-                    const delay = (4 - speed) * 50; // 0ms for speed 4, 200ms for speed 0
-                    animationId = setTimeout(() => {
-                        requestAnimationFrame(animateParticle);
-                    }, delay);
-                }
-
-                function drawParticle() {
-                    vfCtx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
-                    vfCtx.lineWidth = 2;
-
-                    vfCtx.beginPath();
-                    particle.trail.forEach((point, index) => {
-                        const canvasS = drawingArea.x + ((point.s - smin) / (smax - smin)) * drawingArea.width;
-                        const canvasT = drawingArea.y + drawingArea.height - ((point.t - tmin) / (tmax - tmin)) * drawingArea.height;
-
-                        if (index === 0) {
-                            vfCtx.moveTo(canvasS, canvasT);
-                        } else {
-                            vfCtx.lineTo(canvasS, canvasT);
-                        }
-                    });
-                    vfCtx.stroke();
-
-                    // Draw the particle
-                    const canvasS = drawingArea.x + ((particle.s - smin) / (smax - smin)) * drawingArea.width;
-                    const canvasT = drawingArea.y + drawingArea.height - ((particle.t - tmin) / (tmax - tmin)) * drawingArea.height;
-                    vfCtx.fillStyle = 'darkblue';
-                    vfCtx.beginPath();
-                    vfCtx.arc(canvasS, canvasT, 4, 0, 2 * Math.PI);
-                    vfCtx.fill();
-                }
-
-                function drawPopulationGraph() {
-                    pgCtx.clearRect(0, 0, populationGraph.width, populationGraph.height);
-
-                    // Draw axes
-                    pgCtx.beginPath();
-                    pgCtx.moveTo(50, 10);
-                    pgCtx.lineTo(50, 180);
-                    pgCtx.lineTo(490, 180);
-                    pgCtx.stroke();
-
-                    // Label axes
-                    pgCtx.fillStyle = 'black';
-                    pgCtx.font = '12px Arial';
-                    pgCtx.textAlign = 'center';
-                    pgCtx.fillText('Time', 270, 195);
-
-                    // Population label
-                    pgCtx.save();
-                    pgCtx.translate(15, 95);
-                    pgCtx.rotate(-Math.PI/2);
-                    pgCtx.fillText('Population', 0, 0);
-                    pgCtx.restore();
-
-                    // Add Tuna and Sharks labels
-                    pgCtx.save();
-                    pgCtx.translate(35, 95);
-                    pgCtx.rotate(-Math.PI/2);
-                    pgCtx.fillStyle = 'green';
-                    pgCtx.fillText('Tuna', -30, 0);
-                    pgCtx.fillStyle = 'orange';
-                    pgCtx.fillText('Sharks', 30, 0);
-                    pgCtx.restore();
-
-                    if (populationData.length > 1) {
-                        const maxTime = Math.max(...populationData.map(d => d.time));
-                        const maxPop = Math.max(...populationData.map(d => Math.max(d.s, d.t)));
-
-                        // Draw shark population
-                        pgCtx.strokeStyle = 'orange';
+                        // Draw axes
                         pgCtx.beginPath();
-                        populationData.forEach((d, i) => {
-                            const x = 50 + (d.time / maxTime) * 440;
-                            const y = 180 - (d.s / maxPop) * 170;
-                            if (i === 0) pgCtx.moveTo(x, y);
-                            else pgCtx.lineTo(x, y);
-                        });
+                        pgCtx.moveTo(50, 10);
+                        pgCtx.lineTo(50, 180);
+                        pgCtx.lineTo(490, 180);
                         pgCtx.stroke();
 
-                        // Draw tuna population
-                        pgCtx.strokeStyle = 'green';
-                        pgCtx.beginPath();
-                        populationData.forEach((d, i) => {
-                            const x = 50 + (d.time / maxTime) * 440;
-                            const y = 180 - (d.t / maxPop) * 170;
-                            if (i === 0) pgCtx.moveTo(x, y);
-                            else pgCtx.lineTo(x, y);
-                        });
-                        pgCtx.stroke();
+                        // Label axes
+                        pgCtx.fillStyle = 'black';
+                        pgCtx.font = '12px Arial';
+                        pgCtx.textAlign = 'center';
+                        pgCtx.fillText('Time', 270, 195);
 
-                        // Add markers for kill events
-                        pgCtx.fillStyle = 'red';
-                        populationData.forEach((d) => {
-                            if (d.event) {
+                        // Population label
+                        pgCtx.save();
+                        pgCtx.translate(15, 95);
+                        pgCtx.rotate(-Math.PI/2);
+                        pgCtx.fillText('Population', 0, 0);
+                        pgCtx.restore();
+
+                        // Add Tuna and Sharks labels
+                        pgCtx.save();
+                        pgCtx.translate(35, 95);
+                        pgCtx.rotate(-Math.PI/2);
+                        pgCtx.fillStyle = 'green';
+                        pgCtx.fillText('Tuna', -30, 0);
+                        pgCtx.fillStyle = 'orange';
+                        pgCtx.fillText('Sharks', 30, 0);
+                        pgCtx.restore();
+
+                        if (populationData.length > 1) {
+                            const maxTime = Math.max(...populationData.map(d => d.time));
+                            const maxPop = Math.max(...populationData.map(d => Math.max(d.s, d.t)));
+
+                            // Draw shark population
+                            pgCtx.strokeStyle = 'orange';
+                            pgCtx.beginPath();
+                            populationData.forEach((d, i) => {
                                 const x = 50 + (d.time / maxTime) * 440;
-                                pgCtx.beginPath();
-                                pgCtx.arc(x, 10, 5, 0, 2 * Math.PI);
-                                pgCtx.fill();
-                            }
+                                const y = 180 - (d.s / maxPop) * 170;
+                                if (i === 0) pgCtx.moveTo(x, y);
+                                else pgCtx.lineTo(x, y);
+                            });
+                            pgCtx.stroke();
+
+                            // Draw tuna population
+                            pgCtx.strokeStyle = 'green';
+                            pgCtx.beginPath();
+                            populationData.forEach((d, i) => {
+                                const x = 50 + (d.time / maxTime) * 440;
+                                const y = 180 - (d.t / maxPop) * 170;
+                                if (i === 0) pgCtx.moveTo(x, y);
+                                else pgCtx.lineTo(x, y);
+                            });
+                            pgCtx.stroke();
+
+                            // Add markers for kill events
+                            pgCtx.fillStyle = 'red';
+                            populationData.forEach((d) => {
+                                if (d.event) {
+                                    const x = 50 + (d.time / maxTime) * 440;
+                                    pgCtx.beginPath();
+                                    pgCtx.arc(x, 10, 5, 0, 2 * Math.PI);
+                                    pgCtx.fill();
+                                }
+                            });
+                        }
+                    }
+
+                    function killPopulation(species) {
+                        if (!particle) return;
+
+                        if (species === 'tuna') {
+                            particle.t = Math.max(1, particle.t - 10);
+                        } else if (species === 'sharks') {
+                            particle.s = Math.max(1, particle.s - 10);
+                        }
+
+                        // Add a marker to the population data
+                        populationData.push({
+                            time: time,
+                            s: particle.s,
+                            t: particle.t,
+                            event: `Kill 10 ${species}`
                         });
-                    }
-                }
 
-                function killPopulation(species) {
-                    if (!particle) return;
-
-                    if (species === 'tuna') {
-                        particle.t = Math.max(1, particle.t - 10);
-                    } else if (species === 'sharks') {
-                        particle.s = Math.max(1, particle.s - 10);
+                        drawVectorField();
+                        drawPopulationGraph();
                     }
 
-                    // Add a marker to the population data
-                    populationData.push({
-                        time: time,
-                        s: particle.s,
-                        t: particle.t,
-                        event: `Kill 10 ${species}`
+                    vectorField.addEventListener('click', function(event) {
+                        const rect = vectorField.getBoundingClientRect();
+                        const x = event.clientX - rect.left;
+                        const y = event.clientY - rect.top;
+                        createParticle(x, y);
                     });
 
-                    drawVectorField();
-                    drawPopulationGraph();
-                }
-
-                vectorField.addEventListener('click', function(event) {
-                    const rect = vectorField.getBoundingClientRect();
-                    const x = event.clientX - rect.left;
-                    const y = event.clientY - rect.top;
-                    createParticle(x, y);
-                });
-
-                document.getElementById('speed').addEventListener('input', function(event) {
-                    speed = parseInt(event.target.value);
-                    if (particle) {
-                        if (animationId) {
-                            clearTimeout(animationId);
+                    document.getElementById('speed').addEventListener('input', function(event) {
+                        speed = parseInt(event.target.value);
+                        if (particle) {
+                            if (animationId) {
+                                clearTimeout(animationId);
+                            }
+                            animateParticle();
                         }
-                        animateParticle();
-                    }
-                });
+                    });
 
-                // Initial setup
-                resetSimulation();
-            </script>
-        </body>
-        </html>
+                    // Initial setup
+                    resetSimulation();
+                </script>
+            </body>
+            </html>
