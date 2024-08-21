@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Gentamicin Dosage Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        canvas {
+            border: 1px solid #ddd;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 10px;
+        }
+        input {
+            margin: 5px 0;
+            padding: 5px;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Interactive Gentamicin Dosage Simulator</h1>
+        <canvas id="gentamicinChart" width="800" height="400"></canvas>
+        <div class="controls">
+            <div class="control-group">
+                <label for="dosage">Dosage (mg):</label>
+                <input type="number" id="dosage" value="200" min="0">
+            </div>
+            <div class="control-group">
+                <label for="frequency">Frequency (hours):</label>
+                <input type="number" id="frequency" value="24" min="0">
+            </div>
+            <div class="control-group">
+                <label for="halflife">Half-life (hours):</label>
+                <input type="number" id="halflife" value="3" min="0" step="0.1">
+            </div>
+            <div class="control-group">
+                <label for="infusionTime">Infusion Time (minutes):</label>
+                <input type="number" id="infusionTime" value="60" min="30" max="120">
+            </div>
+        </div>
+        <button id="simulate">Simulate</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gentamicinChart');
+        const ctx = canvas.getContext('2d');
+        const totalTime = 48; // hours
+        const maxGentamicin = 200; // mg
+        const axisColor = 'rgb(173, 216, 230)';  // Light blue
+
+        function calculateGentamicinLevel(time, dosage, frequency, halfLife, infusionTimeHours) {
+            const decayRate = Math.log(2) / halfLife;
+            const infusionRate = dosage / infusionTimeHours; // mg/hour
+
+            let total = 0;
+            for (let i = 0; i <= Math.floor(time / frequency); i++) {
+                const timeSinceDoseStart = time - i * frequency;
+                if (timeSinceDoseStart >= 0) {
+                    if (timeSinceDoseStart <= infusionTimeHours) {
+                        // During infusion
+                        total += (infusionRate / decayRate) * (1 - Math.exp(-decayRate * timeSinceDoseStart));
+                    } else {
+                        // After infusion
+                        const peakLevel = (infusionRate / decayRate) * (1 - Math.exp(-decayRate * infusionTimeHours));
+                        total += peakLevel * Math.exp(-decayRate * (timeSinceDoseStart - infusionTimeHours));
+                    }
+                }
+            }
+            return total;
+        }
+
+        function drawChart(dosage, frequency, halfLife, infusionTime) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw therapeutic and toxic range bars
+            ctx.fillStyle = 'rgba(144, 238, 144, 0.3)';  // Very light green
+            ctx.fillRect(50, 350 - (50 / maxGentamicin) * 300, 700, (25 / maxGentamicin) * 300);
+            ctx.fillStyle = 'rgba(255, 182, 193, 0.3)';  // Very light red
+            ctx.fillRect(50, 350 - (200 / maxGentamicin) * 300, 700, (140 / maxGentamicin) * 300);
+
+            // Draw horizontal lines
+            ctx.strokeStyle = axisColor;
+            for (let i = 25; i <= maxGentamicin; i += 25) {
+                const y = 350 - (i / maxGentamicin) * 300;
+                ctx.beginPath();
+                ctx.moveTo(50, y);
+                ctx.lineTo(750, y);
+                ctx.stroke();
+            }
+
+            // Draw axes
+            ctx.beginPath();
+            ctx.strokeStyle = axisColor;
+            ctx.moveTo(50, 50);
+            ctx.lineTo(50, 350);
+            ctx.lineTo(750, 350);
+            ctx.stroke();
+
+            // Label axes
+            ctx.font = '12px Arial';
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'center';
+            ctx.fillText('Time (hours)', 400, 390);
+            ctx.save();
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText('Gentamicin in Bloodstream (mg)', -200, 15);
+            ctx.restore();
+
+            // Draw tick marks and labels
+            for (let i = 0; i <= totalTime; i += 12) {
+                const x = 50 + (i / totalTime) * 700;
+                ctx.beginPath();
+                ctx.moveTo(x, 350);
+                ctx.lineTo(x, 355);
+                ctx.stroke();
+                ctx.fillText(i, x, 370);
+            }
+
+            for (let i = 0; i <= maxGentamicin; i += 25) {
+                const y = 350 - (i / maxGentamicin) * 300;
+                ctx.beginPath();
+                ctx.moveTo(45, y);
+                ctx.lineTo(50, y);
+                ctx.stroke();
+                ctx.fillText(i, 35, y + 5);
+            }
+
+            // Plot gentamicin levels
+            ctx.beginPath();
+            ctx.strokeStyle = 'black';
+            for (let t = 0; t <= totalTime; t += 0.1) {
+                const x = 50 + (t / totalTime) * 700;
+                const level = calculateGentamicinLevel(t, dosage, frequency, halfLife, infusionTime / 60);
+                const y = 350 - (level / maxGentamicin) * 300;
+                if (t === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+        }
+
+        document.getElementById('simulate').addEventListener('click', function() {
+            const dosage = parseFloat(document.getElementById('dosage').value);
+            const frequency = parseFloat(document.getElementById('frequency').value);
+            const halfLife = parseFloat(document.getElementById('halflife').value);
+            const infusionTime = parseFloat(document.getElementById('infusionTime').value);
+            drawChart(dosage, frequency, halfLife, infusionTime);
+        });
+
+        // Initial draw
+        drawChart(200, 24, 3, 60);
+    </script>
+</body>
+</html>
