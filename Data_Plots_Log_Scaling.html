@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Plots with Log-Scaling</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        #graph {
+            border: 1px solid #ddd;
+        }
+        table {
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+            cursor: pointer;
+        }
+        th.active {
+            background-color: #90EE90;
+        }
+        input {
+            width: 50px;
+            text-align: center;
+        }
+        .invalid-data {
+            background-color: #A9A9A9;
+        }
+        .log-buttons {
+            margin-top: 10px;
+            text-align: center;
+        }
+        .log-buttons button {
+            margin: 0 5px;
+        }
+        .log-buttons button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Data plots with log-scaling</h1>
+    <div class="container">
+        <canvas id="graph" width="500" height="500"></canvas>
+        <div>
+            <table id="dataTable">
+                <tr>
+                    <th id="logX">Log(X)</th>
+                    <th id="x" class="active">X</th>
+                    <th id="y" class="active">Y</th>
+                    <th id="logY">Log(Y)</th>
+                </tr>
+            </table>
+            <div class="log-buttons">
+                <span>Logarithm type:</span>
+                <button id="log10" class="active">Log<sub>10</sub></button>
+                <button id="log2">Log<sub>2</sub></button>
+                <button id="ln">ln</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('graph');
+        const ctx = canvas.getContext('2d');
+        const table = document.getElementById('dataTable');
+        let useLogX = false;
+        let useLogY = false;
+        let logBase = 10;
+
+        // Initialize data
+        let data = Array.from({length: 10}, (_, i) => ({x: i + 1, y: i + 1}));
+
+        function updateTable() {
+            // Clear existing rows
+            while (table.rows.length > 1) {
+                table.deleteRow(1);
+            }
+
+            // Add new rows
+            data.forEach((point, index) => {
+                let row = table.insertRow(-1);
+                let cellLogX = row.insertCell(0);
+                let cellX = row.insertCell(1);
+                let cellY = row.insertCell(2);
+                let cellLogY = row.insertCell(3);
+
+                let isValidData = isDataPointValid(point);
+                if (!isValidData) {
+                    row.classList.add('invalid-data');
+                }
+
+                cellLogX.textContent = isValidData && point.x > 0 ? customLog(point.x).toFixed(3) : '';
+                cellX.innerHTML = `<input type="number" value="${point.x !== undefined ? point.x : ''}" onchange="updateData(${index}, 'x', this.value)">`;
+                cellY.innerHTML = `<input type="number" value="${point.y !== undefined ? point.y : ''}" onchange="updateData(${index}, 'y', this.value)">`;
+                cellLogY.textContent = isValidData && point.y > 0 ? customLog(point.y).toFixed(3) : '';
+            });
+        }
+
+        function customLog(value) {
+            switch(logBase) {
+                case 2: return Math.log2(value);
+                case Math.E: return Math.log(value);
+                default: return Math.log10(value);
+            }
+        }
+
+        function isDataPointValid(point) {
+            return point.x !== undefined && point.y !== undefined &&
+                   !isNaN(point.x) && !isNaN(point.y) &&
+                   isFinite(point.x) && isFinite(point.y) &&
+                   (!useLogX || point.x > 0) && (!useLogY || point.y > 0);
+        }
+
+        function updateData(index, axis, value) {
+            if (value === "") {
+                data[index][axis] = undefined;
+            } else {
+                data[index][axis] = parseFloat(value);
+            }
+            updateTable();
+            drawGraph();
+        }
+
+        function calculateStatistics(data) {
+            let validData = data.filter(isDataPointValid);
+            let xValues = validData.map(p => useLogX ? customLog(p.x) : p.x);
+            let yValues = validData.map(p => useLogY ? customLog(p.y) : p.y);
+
+            let sumX = xValues.reduce((a, b) => a + b, 0);
+            let sumY = yValues.reduce((a, b) => a + b, 0);
+            let sumXY = xValues.reduce((sum, x, i) => sum + x * yValues[i], 0);
+            let sumX2 = xValues.reduce((sum, x) => sum + x * x, 0);
+            let n = validData.length;
+
+            let m = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            let b = (sumY - m * sumX) / n;
+
+            // Calculate R-squared
+            let yMean = sumY / n;
+            let ssRes = yValues.reduce((sum, y, i) => sum + Math.pow(y - (m * xValues[i] + b), 2), 0);
+            let ssTot = yValues.reduce((sum, y) => sum + Math.pow(y - yMean, 2), 0);
+            let rSquared = 1 - (ssRes / ssTot);
+
+            return {m, b, rSquared};
+        }
+
+        function drawGraph() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Filter out invalid points
+            let validData = data.filter(isDataPointValid);
+
+            if (validData.length === 0) {
+                ctx.font = '14px Arial';
+                ctx.fillText("No valid data points", 250, 250);
+                return;
+            }
+
+            // Calculate bounds
+            let xValues = validData.map(p => useLogX ? customLog(p.x) : p.x);
+            let yValues = validData.map(p => useLogY ? customLog(p.y) : p.y);
+            let minX = Math.min(...xValues);
+            let maxX = Math.max(...xValues);
+            let minY = Math.min(...yValues);
+            let maxY = Math.max(...yValues);
+
+            // Add padding
+            let padX = (maxX - minX) * 0.1;
+            let padY = (maxY - minY) * 0.1;
+            let plotMinX = minX - padX;
+            let plotMaxX = maxX + padX;
+            let plotMinY = minY - padY;
+            let plotMaxY = maxY + padY;
+
+            // Scaling factors
+            let scaleX = 440 / (plotMaxX - plotMinX);
+            let scaleY = 440 / (plotMaxY - plotMinY);
+
+            // Draw axes
+            ctx.beginPath();
+            ctx.strokeStyle = 'gray';
+            ctx.moveTo(30, 470);
+            ctx.lineTo(470, 470);
+            ctx.moveTo(30, 470);
+            ctx.lineTo(30, 30);
+            ctx.stroke();
+
+            // Label axes
+            ctx.fillStyle = 'black';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(getAxisLabel('X'), 250, 485);
+            ctx.save();
+            ctx.translate(15, 250);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText(getAxisLabel('Y'), 0, 0);
+            ctx.restore();
+
+            // Draw tick marks and labels
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            let minXPos = (minX - plotMinX) * scaleX + 30;
+            let maxXPos = (maxX - plotMinX) * scaleX + 30;
+            ctx.fillText(minX.toFixed(1), minXPos, 475);
+            ctx.fillText(maxX.toFixed(1), maxXPos, 475);
+
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            let minYPos = 470 - (minY - plotMinY) * scaleY;
+            let maxYPos = 470 - (maxY - plotMinY) * scaleY;
+            ctx.fillText(minY.toFixed(1), 25, minYPos);
+            ctx.fillText(maxY.toFixed(1), 25, maxYPos);
+
+            // Draw tick marks
+            ctx.beginPath();
+            ctx.moveTo(minXPos, 470);
+            ctx.lineTo(minXPos, 475);
+            ctx.moveTo(maxXPos, 470);
+            ctx.lineTo(maxXPos, 475);
+            ctx.moveTo(25, minYPos);
+            ctx.lineTo(30, minYPos);
+            ctx.moveTo(25, maxYPos);
+            ctx.lineTo(30, maxYPos);
+            ctx.stroke();
+
+            // Plot points
+            ctx.fillStyle = 'steelblue';
+            validData.forEach(point => {
+                let x = ((useLogX ? customLog(point.x) : point.x) - plotMinX) * scaleX + 30;
+                let y = 470 - ((useLogY ? customLog(point.y) : point.y) - plotMinY) * scaleY;
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            // Calculate statistics and draw least squares line
+            let {m, b, rSquared} = calculateStatistics(validData);
+            let startY = m * plotMinX + b;
+            let endY = m * plotMaxX + b;
+            let startPoint = {
+                x: 30,
+                y: 470 - (startY - plotMinY) * scaleY
+            };
+            let endPoint = {
+                x: 470,
+                y: 470 - (endY - plotMinY) * scaleY
+            };
+
+            ctx.beginPath();
+            ctx.moveTo(startPoint.x, startPoint.y);
+            ctx.lineTo(endPoint.x, endPoint.y);
+            ctx.strokeStyle = 'red';
+            ctx.stroke();
+
+            // Display R-squared
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillText("R² = " + rSquared.toFixed(3), 40, 40);
+
+            // Display slope and intercept
+            ctx.fillStyle = 'red';
+            ctx.fillText("m = " + m.toFixed(3) + ", b = " + b.toFixed(3), 40, 60);
+        }
+
+        function getAxisLabel(axis) {
+            if ((axis === 'X' && useLogX) || (axis === 'Y' && useLogY)) {
+                switch(logBase) {
+                    case 2: return `Log₂(${axis})`;
+                    case Math.E: return `ln(${axis})`;
+                    default: return `Log₁₀(${axis})`;
+                }
+            }
+            return axis;
+        }
+
+        // Event listeners for column headers
+        document.getElementById('logX').addEventListener('click', () => {
+            useLogX = true;
+            document.getElementById('logX').classList.add('active');
+            document.getElementById('x').classList.remove('active');
+            updateTable();
+            drawGraph();
+        });
+
+        document.getElementById('x').addEventListener('click', () => {
+            useLogX = false;
+            document.getElementById('x').classList.add('active');
+            document.getElementById('logX').classList.remove('active');
+            updateTable();
+            drawGraph();
+        });
+
+        document.getElementById('logY').addEventListener('click', () => {
+            useLogY = true;
+            document.getElementById('logY').classList.add('active');
+            document.getElementById('y').classList.remove('active');
+            updateTable();
+            drawGraph();
+        });
+
+        document.getElementById('y').addEventListener('click', () => {
+            useLogY = false;
+            document.getElementById('y').classList.add('active');
+            document.getElementById('logY').classList.remove('active');
+            updateTable();
+            drawGraph();
+        });
+
+        // Event listeners for logarithm type buttons
+        document.getElementById('log10').addEventListener('click', () => {
+            logBase = 10;
+            updateLogButtons('log10');
+            updateTable();
+            drawGraph();
+        });
+
+        document.getElementById('log2').addEventListener('click', () => {
+            logBase = 2;
+            updateLogButtons('log2');
+            updateTable();
+            drawGraph();
+        });
+
+        document.getElementById('ln').addEventListener('click', () => {
+            logBase = Math.E;
+            updateLogButtons('ln');
+            updateTable();
+            drawGraph();
+        });
+
+        function updateLogButtons(activeId) {
+            ['log10', 'log2', 'ln'].forEach(id => {
+                document.getElementById(id).classList.toggle('active', id === activeId);
+            });
+        }
+
+        updateTable();
+        drawGraph();
+    </script>
+</body>
+</html>
