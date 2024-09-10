@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Self-interaction Simulator</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        .simulation-area {
+            display: flex;
+            align-items: flex-start;
+        }
+        #simulationCanvas {
+            border: 1px solid #000;
+            border-radius: 50%;
+            background-color: #e6f3ff;
+        }
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            margin-left: 20px;
+            height: 400px;
+            justify-content: center;
+        }
+        #controls {
+            position: relative;
+            width: 400px;
+            margin-top: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            position: absolute;
+            top: 0;
+        }
+        #startButton {
+            background-color: #4CAF50;
+            color: white;
+            right: calc(50% + 5px);
+        }
+        #stopButton {
+            background-color: #f44336;
+            color: white;
+            left: calc(50% + 5px);
+        }
+        .button-disabled {
+            background-color: #ccc !important;
+            cursor: not-allowed;
+        }
+        table {
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 5px 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+        #particleCount {
+            margin-bottom: 10px;
+            padding: 5px;
+            width: 100px;
+            font-size: 14px;
+        }
+        label[for="particleCount"] {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Self-interaction Simulator</h1>
+        <div class="simulation-area">
+            <div>
+                <canvas id="simulationCanvas" width="400" height="400"></canvas>
+                <div id="controls">
+                    <button id="startButton">Start</button>
+                    <button id="stopButton" class="button-disabled">Stop</button>
+                </div>
+            </div>
+            <div class="right-panel">
+                <label for="particleCount">Number of particles:</label>
+                <input type="number" id="particleCount" min="2" max="50" value="10">
+                <table id="statsTable">
+                    <tr>
+                        <th>Timer</th>
+                        <th>Hits</th>
+                    </tr>
+                    <tr>
+                        <td id="timerValue">10.0</td>
+                        <td id="hitsValue">0</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const timerValue = document.getElementById('timerValue');
+        const hitsValue = document.getElementById('hitsValue');
+        const particleCountInput = document.getElementById('particleCount');
+
+        const particles = [];
+        const fireworks = [];
+        let particleCount = 10;
+        const particleSize = 10;
+        const canvasRadius = canvas.width / 2;
+        const velocity = 2;
+        let animationId = null;
+        let lastDirectionChange = 0;
+        let timer = 10;
+        let hits = 0;
+        let hitMatrix = [];
+
+        class Particle {
+            constructor(id) {
+                this.id = id;
+                this.initializePosition();
+                this.angle = Math.random() * 2 * Math.PI;
+                this.updateVelocity();
+            }
+
+            initializePosition() {
+                let r = Math.sqrt(Math.random()) * (canvasRadius - particleSize / 2);
+                let theta = Math.random() * 2 * Math.PI;
+                this.x = canvasRadius + r * Math.cos(theta);
+                this.y = canvasRadius + r * Math.sin(theta);
+            }
+
+            updateVelocity() {
+                this.vx = velocity * Math.cos(this.angle);
+                this.vy = velocity * Math.sin(this.angle);
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                const dx = this.x - canvasRadius;
+                const dy = this.y - canvasRadius;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance + particleSize / 2 > canvasRadius) {
+                    const nx = dx / distance;
+                    const ny = dy / distance;
+                    const dotProduct = this.vx * nx + this.vy * ny;
+                    this.vx -= 2 * dotProduct * nx;
+                    this.vy -= 2 * dotProduct * ny;
+                    this.angle = Math.atan2(this.vy, this.vx);
+                    const overlapDistance = distance + particleSize / 2 - canvasRadius;
+                    this.x -= overlapDistance * nx;
+                    this.y -= overlapDistance * ny;
+                }
+            }
+
+            changeDirection() {
+                const change = Math.random() < 0.5 ? Math.PI / 4 : -Math.PI / 4;
+                this.angle += change;
+                this.updateVelocity();
+            }
+
+            draw() {
+                ctx.fillStyle = 'rgba(255, 140, 0, 0.7)';
+                ctx.fillRect(this.x - particleSize / 2, this.y - particleSize / 2, particleSize, particleSize);
+            }
+        }
+
+        class Firework {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.particles = [];
+                this.lifespan = 500; // 0.5 seconds
+                for (let i = 0; i < 10; i++) {
+                    this.particles.push({
+                        x: this.x,
+                        y: this.y,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        radius: Math.random() + 0.5,
+                        alpha: 1
+                    });
+                }
+            }
+
+            update(deltaTime) {
+                this.lifespan -= deltaTime;
+                this.particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.alpha = Math.max(0, p.alpha - deltaTime / 500);
+                });
+            }
+
+            draw() {
+                this.particles.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 0, 0, ${p.alpha})`;
+                    ctx.fill();
+                });
+            }
+        }
+
+        function init() {
+            particles.length = 0;
+            fireworks.length = 0;
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle(i));
+            }
+            hitMatrix = Array(particleCount).fill().map(() => Array(particleCount).fill(false));
+            timer = 10;
+            hits = 0;
+            updateStats();
+        }
+
+        function updateStats() {
+            timerValue.textContent = timer.toFixed(1);
+            hitsValue.textContent = hits;
+        }
+
+        function checkCollisions() {
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < particleSize && !hitMatrix[i][j]) {
+                        hitMatrix[i][j] = true;
+                        hits++;
+                        const midX = (particles[i].x + particles[j].x) / 2;
+                        const midY = (particles[i].y + particles[j].y) / 2;
+                        fireworks.push(new Firework(midX, midY));
+                        updateStats();
+                    }
+                }
+            }
+        }
+
+        let lastTime = 0;
+        function animate(timestamp) {
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.beginPath();
+            ctx.arc(canvasRadius, canvasRadius, canvasRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#e6f3ff';
+            ctx.fill();
+
+            if (timestamp - lastDirectionChange > 1000) {
+                particles.forEach(particle => particle.changeDirection());
+                lastDirectionChange = timestamp;
+            }
+
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+
+            fireworks.forEach((firework, index) => {
+                firework.update(deltaTime);
+                firework.draw();
+                if (firework.lifespan <= 0) {
+                    fireworks.splice(index, 1);
+                }
+            });
+
+            checkCollisions();
+
+            timer -= deltaTime / 1000;
+            if (timer <= 0) {
+                timer = 0;
+                stopSimulation();
+            }
+            updateStats();
+
+            if (timer > 0) {
+                animationId = requestAnimationFrame(animate);
+            }
+        }
+
+        function startSimulation() {
+            stopSimulation();
+            particleCount = Math.min(Math.max(parseInt(particleCountInput.value) || 10, 2), 50);
+            particleCountInput.value = particleCount;
+            init();
+            lastTime = performance.now();
+            lastDirectionChange = lastTime;
+            animate(lastTime);
+            startButton.classList.add('button-disabled');
+            stopButton.classList.remove('button-disabled');
+        }
+
+        function stopSimulation() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            startButton.classList.remove('button-disabled');
+            stopButton.classList.add('button-disabled');
+        }
+
+        startButton.addEventListener('click', startSimulation);
+        stopButton.addEventListener('click', stopSimulation);
+
+        particleCountInput.addEventListener('change', function() {
+            this.value = Math.min(Math.max(parseInt(this.value) || 10, 2), 50);
+        });
+
+        init();
+    </script>
+</body>
+</html>
