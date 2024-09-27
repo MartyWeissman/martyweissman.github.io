@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generalized Lotka-Volterra Model</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { display: flex; flex-direction: column; align-items: center; }
+        .plot-container { display: flex; }
+        .plot { width: 400px; height: 400px; }
+        .controls { margin-left: 20px; }
+        .input-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .input-group { width: 48%; }
+        input { width: 50px; }
+        button { margin-top: 10px; }
+        h1 { text-align: center; }
+        .button-container {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                margin-top: 20px;
+            }
+            .button-row {
+                display: flex;
+                justify-content: space-between;
+                gap: 10px;
+            }
+            .button-row button {
+                flex: 1;
+                padding: 10px;
+                font-size: 14px;
+                cursor: pointer;
+        }
+        </style>
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Generalized Lotka-Volterra Model</h1>
+        <div class="plot-container">
+            <canvas id="plot" class="plot" width="400" height="400"></canvas>
+            <div class="controls">
+                <div id="equations"></div>
+                <div id="params">
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="alpha">α: </label>
+                            <input type="number" id="alpha" step="0.5" min="-5" max="5" value="4">
+                        </div>
+                        <div class="input-group">
+                            <label for="beta">β: </label>
+                            <input type="number" id="beta" step="0.5" min="-5" max="5" value="4">
+                        </div>
+                    </div>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="gamma">γ: </label>
+                            <input type="number" id="gamma" step="0.5" min="-5" max="5" value="1.5">
+                        </div>
+                        <div class="input-group">
+                            <label for="delta">δ: </label>
+                            <input type="number" id="delta" step="0.5" min="-5" max="5" value="1.5">
+                        </div>
+                    </div>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="u">u: </label>
+                            <input type="number" id="u" step="0.5" min="-5" max="5" value="-1">
+                        </div>
+                        <div class="input-group">
+                            <label for="v">v: </label>
+                            <input type="number" id="v" step="0.5" min="-5" max="5" value="-1">
+                        </div>
+                    </div>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="k">vector scaling: </label>
+                            <input type="number" id="k" step="1" min="1" max="10" value="5">
+                        </div>
+                    </div>
+                </div>
+                <div class="input-row">
+                    <div class="input-group" style="width: 100%;">
+                        <label for="speed">Animation speed:</label>
+                        <div style="display: flex; align-items: center;">
+                            <span style="margin-right: 5px;">stop</span>
+                            <input type="range" id="speed" name="speed" min="0" max="10" step="1" value="5" style="flex-grow: 1;">
+                            <span style="margin-left: 5px;">fast</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="button-container">
+                    <div class="button-row">
+                        <button id="nullclinesToggle">Nullclines are off</button>
+                        <button id="equilibriumToggle">Equilibrium points off</button>
+                    </div>
+                    <div class="button-row">
+                        <button id="vectorFieldToggle">Vector field is off</button>
+                        <button id="animationToggle">Animation is off</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('plot');
+        const ctx = canvas.getContext('2d');
+        const equations = document.getElementById('equations');
+        const nullclinesToggle = document.getElementById('nullclinesToggle');
+        const vectorFieldToggle = document.getElementById('vectorFieldToggle');
+        const animationToggle = document.getElementById('animationToggle');
+
+        let params = {
+            alpha: 4, beta: 4, gamma: 1.5, delta: 1.5, u: -1, v: -1, k: 5
+        };
+        let showNullclines = false;
+        let showVectorField = false;
+        let showAnimation = false;
+
+        const xMin = -1, xMax = 5, yMin = -1, yMax = 5;
+        const width = 400, height = 400;
+
+        function toCanvasX(x) {
+            return (x - xMin) / (xMax - xMin) * width;
+        }
+
+        function toCanvasY(y) {
+            return height - (y - yMin) / (yMax - yMin) * height;
+        }
+
+        function drawAxis() {
+            ctx.strokeStyle = 'black';
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(xMin), toCanvasY(0));
+            ctx.lineTo(toCanvasX(xMax), toCanvasY(0));
+            ctx.moveTo(toCanvasX(0), toCanvasY(yMin));
+            ctx.lineTo(toCanvasX(0), toCanvasY(yMax));
+            ctx.stroke();
+
+            ctx.fillStyle = 'black';
+            ctx.fillText('P', toCanvasX(xMax) + 10, toCanvasY(0));
+            ctx.fillText('Q', toCanvasX(0), toCanvasY(yMax) - 10);
+        }
+
+        function drawGrid() {
+            if (showVectorField) return; // Don't draw grid if vector field is shown
+
+            ctx.strokeStyle = 'lightgray';
+            // Draw vertical lines
+            for (let i = 0; i <= 5; i++) {
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(i), toCanvasY(0));
+                ctx.lineTo(toCanvasX(i), toCanvasY(5));
+                ctx.stroke();
+            }
+            // Draw horizontal lines
+            for (let i = 0; i <= 5; i++) {
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(0), toCanvasY(i));
+                ctx.lineTo(toCanvasX(5), toCanvasY(i));
+                ctx.stroke();
+            }
+        }
+
+        const INSIDE = 0, LEFT = 1, RIGHT = 2, BOTTOM = 4, TOP = 8;
+
+        function computeOutCode(x, y) {
+            let code = INSIDE;
+            if (x < xMin) code |= LEFT;
+            else if (x > xMax) code |= RIGHT;
+            if (y < yMin) code |= BOTTOM;
+            else if (y > yMax) code |= TOP;
+            return code;
+        }
+
+        function drawClippedLine(x0, y0, x1, y1, color) {
+            let outcode0 = computeOutCode(x0, y0);
+            let outcode1 = computeOutCode(x1, y1);
+            let accept = false;
+
+            while (true) {
+                if (!(outcode0 | outcode1)) {
+                    accept = true;
+                    break;
+                } else if (outcode0 & outcode1) {
+                    break;
+                } else {
+                    let x, y;
+                    const outcodeOut = outcode0 ? outcode0 : outcode1;
+
+                    if (outcodeOut & TOP) {
+                        x = x0 + (x1 - x0) * (yMax - y0) / (y1 - y0);
+                        y = yMax;
+                    } else if (outcodeOut & BOTTOM) {
+                        x = x0 + (x1 - x0) * (yMin - y0) / (y1 - y0);
+                        y = yMin;
+                    } else if (outcodeOut & RIGHT) {
+                        y = y0 + (y1 - y0) * (xMax - x0) / (x1 - x0);
+                        x = xMax;
+                    } else if (outcodeOut & LEFT) {
+                        y = y0 + (y1 - y0) * (xMin - x0) / (x1 - x0);
+                        x = xMin;
+                    }
+
+                    if (outcodeOut === outcode0) {
+                        x0 = x; y0 = y;
+                        outcode0 = computeOutCode(x0, y0);
+                    } else {
+                        x1 = x; y1 = y;
+                        outcode1 = computeOutCode(x1, y1);
+                    }
+                }
+            }
+
+            if (accept) {
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2; // Make lines slightly thicker for better visibility
+                    ctx.beginPath();
+                    ctx.moveTo(toCanvasX(x0), toCanvasY(y0));
+                    ctx.lineTo(toCanvasX(x1), toCanvasY(y1));
+                    ctx.stroke();
+                    ctx.lineWidth = 1; // Reset line width
+                }
+        }
+
+        function drawNullclines() {
+            if (!showNullclines) return;
+
+            const { alpha, beta, gamma, delta, u, v } = params;
+            const lightRed = 'rgb(255,150,150)';
+            const lightBlue = 'rgb(150,150,255)';
+
+            // P-nullcline
+            if (u === 0) {
+                if (gamma !== 0) {
+                    // Vertical line P = alpha/gamma
+                    const p = alpha / gamma;
+                    drawClippedLine(p, 0, p, 5, lightRed);
+                } else {
+                    // Only P = 0
+                    drawClippedLine(0, 0, 0, 5, lightRed);
+                }
+            } else {
+                // Regular case
+                drawClippedLine(0, 0, 0, 5, lightRed);
+                const y1 = -alpha/u + (gamma/u) * 0;
+                const y2 = -alpha/u + (gamma/u) * 5;
+                drawClippedLine(0, y1, 5, y2, lightRed);
+            }
+
+            // Q-nullcline
+            if (v === 0) {
+                if (delta !== 0) {
+                    // Horizontal line Q = beta/delta
+                    const q = beta / delta;
+                    drawClippedLine(0, q, 5, q, lightBlue);
+                } else {
+                    // Only Q = 0
+                    drawClippedLine(0, 0, 5, 0, lightBlue);
+                }
+            } else {
+                // Regular case
+                drawClippedLine(0, 0, 5, 0, lightBlue);
+                const x1 = -beta/v + (delta/v) * 0;
+                const x2 = -beta/v + (delta/v) * 5;
+                drawClippedLine(x1, 0, x2, 5, lightBlue);
+            }
+        }
+
+        function drawVectorField() {
+            if (!showVectorField) return;
+
+            const { alpha, beta, gamma, delta, u, v, k } = params;
+            const scale = 0.01 * k;
+
+            ctx.strokeStyle = 'gray'; // Changed from 'darkgreen' to 'gray'
+            for (let p = 0; p <= 5; p += 0.5) {
+                for (let q = 0; q <= 5; q += 0.5) {
+                    const pPrime = alpha * p - gamma * p * p + u * p * q;
+                    const qPrime = beta * q - delta * q * q + v * p * q;
+
+                    const x1 = p;
+                    const y1 = q;
+                    const x2 = p + scale * pPrime;
+                    const y2 = q + scale * qPrime;
+
+                    ctx.beginPath();
+                    ctx.moveTo(toCanvasX(x1), toCanvasY(y1));
+                    ctx.lineTo(toCanvasX(x2), toCanvasY(y2));
+                    ctx.stroke();
+
+                    // Draw arrowhead
+                    const dx = x2 - x1;
+                    const dy = y2 - y1;
+                    const angle = Math.atan2(dy, dx);
+                    ctx.save();
+                    ctx.translate(toCanvasX(x2), toCanvasY(y2));
+                    ctx.rotate(-angle);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(-7, -2);
+                    ctx.lineTo(-7, 2);
+                    ctx.closePath();
+                    ctx.fillStyle = 'gray'; // Changed from 'darkgreen' to 'gray'
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+        }
+
+        let particles = [];
+        let animationStartTime;
+
+        function initializeParticles() {
+            particles = [];
+            for (let p = 0; p <= 5; p += 0.5) {
+                for (let q = 0; q <= 5; q += 0.5) {
+                    particles.push({
+                        p: p,
+                        q: q,
+                        trail: []
+                    });
+                }
+            }
+        }
+        function updateParticles(dt) {
+            const { alpha, beta, gamma, delta, u, v, speed } = params;
+            const scaledDt = dt * speed / 10;
+            particles.forEach(particle => {
+                const pPrime = alpha * particle.p - gamma * particle.p * particle.p + u * particle.p * particle.q;
+                const qPrime = beta * particle.q - delta * particle.q * particle.q + v * particle.p * particle.q;
+
+                particle.trail.push({p: particle.p, q: particle.q});
+                if (particle.trail.length > 60) { // Increased from 20 to 60 for longer trails
+                    particle.trail.shift();
+                }
+
+                particle.p += pPrime * scaledDt;
+                particle.q += qPrime * scaledDt;
+            });
+        }
+
+        function drawParticles() {
+            particles.forEach(particle => {
+                // Draw trail
+                ctx.beginPath();
+                particle.trail.forEach((pos, index) => {
+                    // Calculate alpha value that fades from 1.0 to 0.3
+                    const alpha = 1 - (0.7 * index / (particle.trail.length - 1));
+                    ctx.strokeStyle = `rgba(0, 0, 255, ${alpha})`;
+                    if (index === 0) {
+                        ctx.moveTo(toCanvasX(pos.p), toCanvasY(pos.q));
+                    } else {
+                        ctx.lineTo(toCanvasX(pos.p), toCanvasY(pos.q));
+                    }
+                });
+                ctx.stroke();
+
+                // Draw particle
+                ctx.fillStyle = 'blue';
+                ctx.beginPath();
+                ctx.arc(toCanvasX(particle.p), toCanvasY(particle.q), 2, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        }
+        function animate(timestamp) {
+            if (!animationStartTime) animationStartTime = timestamp;
+            const elapsedTime = timestamp - animationStartTime;
+
+            if (elapsedTime > 10000) {
+                // Reset animation after 10 seconds
+                initializeParticles();
+                animationStartTime = timestamp;
+            }
+
+            if (params.speed > 0) {
+                updateParticles(0.016); // Assume 60 FPS, so dt ≈ 16ms
+            }
+            updatePlot();
+
+            if (showAnimation) {
+                requestAnimationFrame(animate);
+            }
+        }
+
+        let showEquilibriumPoints = false;
+
+        function findEquilibriumPoints() {
+            const { alpha, beta, gamma, delta, u, v } = params;
+            let points = [{p: 0, q: 0}];  // (0,0) is always an equilibrium point
+
+            // P=0 intercept of Q-nullcline
+            if (v !== 0) {
+                const q = beta / delta;
+                points.push({p: 0, q: q});
+            }
+
+            // Q=0 intercept of P-nullcline
+            if (u !== 0) {
+                const p = alpha / gamma;
+                points.push({p: p, q: 0});
+            }
+
+            // When u = 0
+            if (u === 0 && gamma !== 0) {
+                const p = alpha / gamma;
+                points.push({p: p, q: 0});
+            }
+
+            // When v = 0
+            if (v === 0 && delta !== 0) {
+                const q = beta / delta;
+                points.push({p: 0, q: q});
+            }
+
+            // Intersection of P-nullcline and Q-nullcline
+            const determinant = gamma * (-delta) - (-u) * v;
+            if (determinant !== 0) {
+                // Solve the system of equations
+                const p = (alpha * (-delta) - (-u) * (-beta)) / determinant;
+                const q = (gamma * (-beta) - alpha * v) / determinant;
+
+                if (p > 0 && q > 0) {  // Check if in first quadrant
+                    points.push({p: p, q: q});
+                }
+            }
+
+            return points;
+        }
+
+        function drawEquilibriumPoints() {
+            if (!showEquilibriumPoints) return;
+
+            const points = findEquilibriumPoints();
+            ctx.fillStyle = 'lightgray';
+
+            points.forEach(point => {
+                ctx.beginPath();
+                ctx.arc(toCanvasX(point.p), toCanvasY(point.q), 0.1 * (width / (xMax - xMin)), 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        }
+
+        function updatePlot() {
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, width, height);
+            drawGrid();
+            drawAxis();
+            drawNullclines();
+            drawVectorField();
+            drawEquilibriumPoints();  // Add this line
+            if (showAnimation) {
+                drawParticles();
+            }
+        }
+
+        function updateParams(param, value) {
+            params[param] = parseFloat(value);
+            if (param === 'speed' && showAnimation && params.speed === 0) {
+                // If animation is running and speed is set to 0, redraw to show stopped state
+                updatePlot();
+            } else {
+                // For all other parameters, including 'k', update the plot
+                updatePlot();
+            }
+        }
+
+        equations.innerHTML = `
+            <p style="color: darkred;">P' = αP - γP² + uPQ</p>
+            <p style="color: darkblue;">Q' = βQ - δQ² + vPQ</p>
+        `;
+
+        // Update params object and event listeners
+        // Initialize speed to middle value
+        params.speed = 5;
+        document.getElementById('speed').addEventListener('input', (e) => updateParams('speed', e.target.value));
+        document.getElementById('k').addEventListener('input', (e) => updateParams('k', e.target.value));
+
+        // Add event listener for the equilibrium points toggle
+        document.getElementById('equilibriumToggle').addEventListener('click', () => {
+            showEquilibriumPoints = !showEquilibriumPoints;
+            document.getElementById('equilibriumToggle').textContent =
+                `Equilibrium points ${showEquilibriumPoints ? 'on' : 'off'}`;
+            updatePlot();
+        });
+
+        // Set up event listeners for parameter inputs
+        Object.keys(params).forEach(key => {
+            const input = document.getElementById(key);
+            if (input) {
+                input.addEventListener('change', (e) => updateParams(key, e.target.value));
+            }
+        });
+
+        nullclinesToggle.addEventListener('click', () => {
+            showNullclines = !showNullclines;
+            nullclinesToggle.textContent = `Nullclines are ${showNullclines ? 'on' : 'off'}`;
+            updatePlot();
+        });
+
+        vectorFieldToggle.addEventListener('click', () => {
+            showVectorField = !showVectorField;
+            vectorFieldToggle.textContent = `Vector field is ${showVectorField ? 'on' : 'off'}`;
+            updatePlot();
+        });
+
+        animationToggle.addEventListener('click', () => {
+            showAnimation = !showAnimation;
+            animationToggle.textContent = `Animation is ${showAnimation ? 'on' : 'off'}`;
+            if (showAnimation) {
+                initializeParticles();
+                animationStartTime = null;
+                requestAnimationFrame(animate);
+            } else {
+                updatePlot();
+            }
+        });
+
+        updatePlot();
+    </script>
+</body>
+</html>
