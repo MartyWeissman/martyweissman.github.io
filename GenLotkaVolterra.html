@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generalized Lotka-Volterra Model</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { display: flex; flex-direction: column; align-items: center; }
+        .plot-container { display: flex; }
+        .plot { width: 400px; height: 400px; }
+        .time-series { width: 700px; height: 200px; }
+        .time-series-container {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .time-series-legend {
+            width: 80px;
+        }
+        .controls { margin-left: 20px; }
+        .input-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .input-group { width: 48%; }
+        input { width: 50px; }
+        h1 { text-align: center; }
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .button-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .button-row button {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .nullclines-button {
+            border-top: 2px solid rgb(255,150,150);
+            border-bottom: 2px solid rgb(255,150,150);
+            border-left: 2px solid rgb(150,150,255);
+            border-right: 2px solid rgb(150,150,255);
+        }
+        .parameter-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .parameter-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .inputs-container {
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 20px;
+            padding: 10px 0;
+            width: 400px;
+            justify-content: space-between;
+        }
+        .bounds-inputs, .initial-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        input[type="number"] {
+            width: 60px;
+            padding: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Generalized Lotka-Volterra Model</h1>
+        <div class="plot-container">
+            <div class="left-section">
+                <div class="plot-container">
+                    <canvas id="plot" class="plot" width="460" height="460"></canvas>
+                </div>
+                <div class="inputs-container">
+                    <div class="bounds-inputs">
+                        <div class="input-group">
+                            <label for="pmax">Pmax: </label>
+                            <input type="number" id="pmax" step="0.5" min="0.5" max="20" value="5">
+                        </div>
+                        <div class="input-group">
+                            <label for="qmax">Qmax: </label>
+                            <input type="number" id="qmax" step="0.5" min="0.5" max="20" value="5">
+                        </div>
+                    </div>
+                    <div class="initial-inputs">
+                        <div class="input-group">
+                            <label for="p0">P(0): </label>
+                            <input type="number" id="p0" step="0.1" min="0" value="1">
+                        </div>
+                        <div class="input-group">
+                            <label for="q0">Q(0): </label>
+                            <input type="number" id="q0" step="0.1" min="0" value="1">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="controls">
+                <div id="equations"></div>
+                <div class="parameter-grid">
+                    <div class="parameter-item">
+                        <label for="alpha">α: </label>
+                        <input type="number" id="alpha" step="0.5" value="1.5">
+                    </div>
+                    <div class="parameter-item">
+                        <label for="beta">β: </label>
+                        <input type="number" id="beta" step="0.5" value="-2">
+                    </div>
+                    <div class="parameter-item">
+                        <label for="gamma">γ: </label>
+                        <input type="number" id="gamma" step="0.5" value="0">
+                    </div>
+                    <div class="parameter-item">
+                        <label for="delta">δ: </label>
+                        <input type="number" id="delta" step="0.5" value="0.5">
+                    </div>
+                    <div class="parameter-item">
+                        <label for="u">u: </label>
+                        <input type="number" id="u" step="0.5" value="-1">
+                    </div>
+                    <div class="parameter-item">
+                        <label for="v">v: </label>
+                        <input type="number" id="v" step="0.5" value="1">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="k">vector scaling: </label>
+                    <input type="number" id="k" step="1" min="1" max="10" value="5">
+                </div>
+                <div class="speed-control">
+                    <label for="speed">Animation speed:</label>
+                    <span>stop</span>
+                    <input type="range" id="speed" min="0" max="10" step="1" value="5">
+                    <span>fast</span>
+                </div>
+                <div class="button-container">
+                    <div class="button-row">
+                        <button id="nullclinesToggle" class="nullclines-button">Nullclines are on</button>
+                        <button id="equilibriumToggle" style="background-color: rgb(180, 140, 180)">Equilibrium points on</button>
+                    </div>
+                    <div class="button-row">
+                        <button id="vectorFieldToggle">Vector field is off</button>
+                        <button id="animationToggle" style="background-color: rgb(140, 140, 200)">Animation is off</button>
+                    </div>
+                    <div class="button-row">
+                        <button id="trajectoryToggle" style="background-color: rgb(140, 180, 140)">Trajectory is off</button>
+                        <button id="traceButton" style="background-color: rgb(140, 180, 140)">Trace Trajectory</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="time-series-container">
+            <canvas id="timeSeries" width="780" height="280"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('plot');
+        const ctx = canvas.getContext('2d');
+        const equations = document.getElementById('equations');
+        const nullclinesToggle = document.getElementById('nullclinesToggle');
+        const vectorFieldToggle = document.getElementById('vectorFieldToggle');
+        const animationToggle = document.getElementById('animationToggle');
+        const trajectoryToggle = document.getElementById('trajectoryToggle');
+
+        const padding = {
+            left: 50,
+            top: 30,
+            right: 30,
+            bottom: 40
+        };
+
+        let width = 400, height = 400;
+
+        let params = {
+            alpha: 1.5, beta: -2, gamma: 0, delta: 0.5, u: -1, v: 1, k: 5,
+            pmax: 5, qmax: 5, speed: 5
+        };
+
+        let showNullclines = true;
+        let showVectorField = false;
+        let showAnimation = false;
+        let showEquilibriumPoints = true;
+        let showTrajectory = false;
+
+        function toCanvasX(x) {
+            return padding.left + (x / params.pmax * width);
+        }
+
+        function toCanvasY(y) {
+            return padding.top + (height - (y / params.qmax * height));
+        }
+
+        function fromCanvasX(x) {
+            return (x - padding.left) * params.pmax / width;
+        }
+
+        function fromCanvasY(y) {
+            return params.qmax * (height - (y - padding.top)) / height;
+        }
+        function drawAxis() {
+            ctx.strokeStyle = 'black';
+            ctx.fillStyle = 'black';
+
+            // Draw axes
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(0), toCanvasY(0));
+            ctx.lineTo(toCanvasX(params.pmax), toCanvasY(0));
+            ctx.moveTo(toCanvasX(0), toCanvasY(0));
+            ctx.lineTo(toCanvasX(0), toCanvasY(params.qmax));
+            ctx.stroke();
+
+            // Draw P axis label and tick mark
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Population P', width/2 + padding.left, height + padding.top + 25);
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(params.pmax), toCanvasY(0) - 5);
+            ctx.lineTo(toCanvasX(params.pmax), toCanvasY(0) + 5);
+            ctx.stroke();
+            ctx.font = '14px Arial';
+            ctx.fillText(params.pmax.toString(), toCanvasX(params.pmax), toCanvasY(0) + 20);
+
+            // Draw Q axis label and tick mark
+            ctx.save();
+            ctx.translate(15, height/2 + padding.top);
+            ctx.rotate(-Math.PI/2);
+            ctx.font = '16px Arial';
+            ctx.fillText('Population Q', 0, 0);
+            ctx.restore();
+
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(0) - 5, toCanvasY(params.qmax));
+            ctx.lineTo(toCanvasX(0) + 5, toCanvasY(params.qmax));
+            ctx.stroke();
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(params.qmax.toString(), toCanvasX(0) - 8, toCanvasY(params.qmax) + 4);
+        }
+
+        function drawGrid() {
+            if (showVectorField) return;
+
+            ctx.strokeStyle = 'lightgray';
+            // Draw vertical lines
+            for (let i = 0; i <= params.pmax; i++) {
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(i), toCanvasY(0));
+                ctx.lineTo(toCanvasX(i), toCanvasY(params.qmax));
+                ctx.stroke();
+            }
+            // Draw horizontal lines
+            for (let i = 0; i <= params.qmax; i++) {
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(0), toCanvasY(i));
+                ctx.lineTo(toCanvasX(params.pmax), toCanvasY(i));
+                ctx.stroke();
+            }
+        }
+
+        function clipToFirstQuadrant(x, y) {
+            return x >= 0 && x <= params.pmax && y >= 0 && y <= params.qmax;
+        }
+
+        function drawClippedLine(x0, y0, x1, y1, color) {
+            if (!clipToFirstQuadrant(x0, y0) && !clipToFirstQuadrant(x1, y1)) return;
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            // Find intersection with axes if needed
+            if (x0 < 0) {
+                const t = -x0 / (x1 - x0);
+                x0 = 0;
+                y0 = y0 + t * (y1 - y0);
+            }
+            if (y0 < 0) {
+                const t = -y0 / (y1 - y0);
+                y0 = 0;
+                x0 = x0 + t * (x1 - x0);
+            }
+            if (x1 < 0) {
+                const t = -x1 / (x0 - x1);
+                x1 = 0;
+                y1 = y1 + t * (y0 - y1);
+            }
+            if (y1 < 0) {
+                const t = -y1 / (y0 - y1);
+                y1 = 0;
+                x1 = x1 + t * (x0 - x1);
+            }
+
+            // Only draw if both points are in first quadrant
+            if (clipToFirstQuadrant(x0, y0) && clipToFirstQuadrant(x1, y1)) {
+                ctx.moveTo(toCanvasX(x0), toCanvasY(y0));
+                ctx.lineTo(toCanvasX(x1), toCanvasY(y1));
+                ctx.stroke();
+            }
+            ctx.lineWidth = 1;
+        }
+
+        function drawNullclines() {
+            if (!showNullclines) return;
+
+            const { alpha, beta, gamma, delta, u, v, pmax, qmax } = params;
+            const lightRed = 'rgb(255,150,150)';
+            const lightBlue = 'rgb(150,150,255)';
+
+            // P-nullcline
+            if (u === 0) {
+                if (gamma !== 0) {
+                    const p = alpha / gamma;
+                    if (p >= 0 && p <= pmax) {
+                        drawClippedLine(p, 0, p, qmax, lightRed);
+                    }
+                }
+            } else {
+                drawClippedLine(0, 0, 0, qmax, lightRed);
+                const y1 = -alpha/u + (gamma/u) * 0;
+                const y2 = -alpha/u + (gamma/u) * pmax;
+                drawClippedLine(0, y1, pmax, y2, lightRed);
+            }
+
+            // Q-nullcline
+            if (v === 0) {
+                if (delta !== 0) {
+                    const q = beta / delta;
+                    if (q >= 0 && q <= qmax) {
+                        drawClippedLine(0, q, pmax, q, lightBlue);
+                    }
+                }
+            } else {
+                drawClippedLine(0, 0, pmax, 0, lightBlue);
+                const x1 = -beta/v + (delta/v) * 0;
+                const x2 = -beta/v + (delta/v) * qmax;
+                drawClippedLine(x1, 0, x2, qmax, lightBlue);
+            }
+        }
+        function drawVectorField() {
+            if (!showVectorField) return;
+
+            const { alpha, beta, gamma, delta, u, v, k, pmax, qmax } = params;
+            const baseScale = 0.01 * k;
+
+            ctx.strokeStyle = 'gray';
+            const step = Math.min(pmax, qmax) / 10;
+            for (let p = 0; p <= pmax; p += step) {
+                for (let q = 0; q <= qmax; q += step) {
+                    const pPrime = alpha * p - gamma * p * p + u * p * q;
+                    const qPrime = beta * q - delta * q * q + v * p * q;
+
+                    // Calculate vector magnitude and apply log transform
+                    const magnitude = Math.sqrt(pPrime * pPrime + qPrime * qPrime);
+                    const logScale = Math.log(magnitude + 1) * baseScale;
+
+                    const x1 = p;
+                    const y1 = q;
+                    const x2 = p + (pPrime / magnitude) * logScale;
+                    const y2 = q + (qPrime / magnitude) * logScale;
+
+                    ctx.beginPath();
+                    ctx.moveTo(toCanvasX(x1), toCanvasY(y1));
+                    ctx.lineTo(toCanvasX(x2), toCanvasY(y2));
+                    ctx.stroke();
+
+                    // Draw arrowhead
+                    const dx = x2 - x1;
+                    const dy = y2 - y1;
+                    const angle = Math.atan2(dy, dx);
+                    ctx.save();
+                    ctx.translate(toCanvasX(x2), toCanvasY(y2));
+                    ctx.rotate(-angle);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(-7, -2);
+                    ctx.lineTo(-7, 2);
+                    ctx.closePath();
+                    ctx.fillStyle = 'gray';
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+        }
+
+        function findEquilibriumPoints() {
+            const { alpha, beta, gamma, delta, u, v } = params;
+            let points = [{p: 0, q: 0}];
+
+            if (v !== 0) {
+                const q = beta / delta;
+                if (q >= 0) points.push({p: 0, q: q});
+            }
+
+            if (u !== 0) {
+                const p = alpha / gamma;
+                if (p >= 0) points.push({p: p, q: 0});
+            }
+
+            if (u === 0 && gamma !== 0) {
+                const p = alpha / gamma;
+                if (p >= 0) points.push({p: p, q: 0});
+            }
+
+            if (v === 0 && delta !== 0) {
+                const q = beta / delta;
+                if (q >= 0) points.push({p: 0, q: q});
+            }
+
+            const determinant = gamma * (-delta) - (-u) * v;
+            if (determinant !== 0) {
+                const p = (alpha * (-delta) - (-u) * (-beta)) / determinant;
+                const q = (gamma * (-beta) - alpha * v) / determinant;
+
+                if (p > 0 && q > 0) {
+                    points.push({p: p, q: q});
+                }
+            }
+
+            return points;
+        }
+
+        function drawEquilibriumPoints() {
+            if (!showEquilibriumPoints) return;
+
+            const points = findEquilibriumPoints();
+            ctx.fillStyle = 'rgb(128, 0, 128)';  // Dark purple
+
+            points.forEach(point => {
+                if (point.p <= params.pmax && point.q <= params.qmax) {
+                    ctx.beginPath();
+                    ctx.arc(toCanvasX(point.p), toCanvasY(point.q), 4, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            });
+        }
+
+        function drawInitialPoint() {
+            const p0 = parseFloat(document.getElementById('p0').value);
+            const q0 = parseFloat(document.getElementById('q0').value);
+
+            if (!isNaN(p0) && !isNaN(q0) && p0 >= 0 && q0 >= 0 && p0 <= params.pmax && q0 <= params.qmax) {
+                ctx.fillStyle = 'green';
+                ctx.beginPath();
+                ctx.arc(toCanvasX(p0), toCanvasY(q0), 5, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+
+        let particles = [];
+        let animationStartTime;
+        let isTracing = false;
+        let currentTrajectory = null;
+
+        const timeSeriesCanvas = document.getElementById('timeSeries');
+        const tsCtx = timeSeriesCanvas.getContext('2d');
+        const timeSeriesData = {
+            time: [0],
+            p: [1],
+            q: [1],
+            maxTime: 20,
+            dt: 0.001  // Much smaller time step
+        };
+
+        function initializeParticles() {
+            particles = [];
+            const step = Math.min(params.pmax, params.qmax) / 10;
+            for (let p = 0; p <= params.pmax; p += step) {
+                for (let q = 0; q <= params.qmax; q += step) {
+                    particles.push({
+                        p: p,
+                        q: q,
+                        trail: []
+                    });
+                }
+            }
+        }
+        function updateParticles(dt) {
+            const { alpha, beta, gamma, delta, u, v, speed } = params;
+            const scaledDt = dt * speed / 10;
+            particles.forEach(particle => {
+                const pPrime = alpha * particle.p - gamma * particle.p * particle.p + u * particle.p * particle.q;
+                const qPrime = beta * particle.q - delta * particle.q * particle.q + v * particle.p * particle.q;
+
+                particle.trail.push({p: particle.p, q: particle.q});
+                if (particle.trail.length > 60) {
+                    particle.trail.shift();
+                }
+
+                particle.p += pPrime * scaledDt;
+                particle.q += qPrime * scaledDt;
+            });
+        }
+
+        function drawParticles() {
+            particles.forEach(particle => {
+                if (particle.p <= params.pmax && particle.q <= params.qmax && particle.p >= 0 && particle.q >= 0) {
+                    ctx.beginPath();
+                    particle.trail.forEach((pos, index) => {
+                        if (pos.p <= params.pmax && pos.q <= params.qmax && pos.p >= 0 && pos.q >= 0) {
+                            const alpha = 1 - (0.7 * index / (particle.trail.length - 1));
+                            ctx.strokeStyle = `rgba(0, 0, 255, ${alpha})`;
+                            if (index === 0) {
+                                ctx.moveTo(toCanvasX(pos.p), toCanvasY(pos.q));
+                            } else {
+                                ctx.lineTo(toCanvasX(pos.p), toCanvasY(pos.q));
+                            }
+                        }
+                    });
+                    ctx.stroke();
+
+                    ctx.fillStyle = 'blue';
+                    ctx.beginPath();
+                    ctx.arc(toCanvasX(particle.p), toCanvasY(particle.q), 2, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            });
+        }
+
+        // Modify drawTimeSeries to ensure P(t) is always visible
+        function drawTimeSeries() {
+            const width = timeSeriesCanvas.width;
+            const height = timeSeriesCanvas.height;
+            const padding = 50;
+
+            // Clear with white background
+            tsCtx.clearRect(0, 0, width, height);
+            tsCtx.fillStyle = 'white';
+            tsCtx.fillRect(0, 0, width, height);
+
+            const maxVal = Math.max(params.pmax, params.qmax);
+
+            // Draw axes
+            tsCtx.strokeStyle = 'black';
+            tsCtx.beginPath();
+            tsCtx.moveTo(padding, padding);
+            tsCtx.lineTo(padding, height - padding);
+            tsCtx.lineTo(width - padding, height - padding);
+            tsCtx.stroke();
+
+            // Draw horizontal grid line at maxVal
+            tsCtx.strokeStyle = 'lightgray';
+            const yMaxVal = height - padding - (height - 2*padding);
+            tsCtx.beginPath();
+            tsCtx.moveTo(padding, yMaxVal);
+            tsCtx.lineTo(width - padding, yMaxVal);
+            tsCtx.stroke();
+
+            // Labels and ticks
+            tsCtx.fillStyle = 'black';
+            tsCtx.font = '16px Arial';
+
+            // Rotated y-axis label
+            tsCtx.save();
+            tsCtx.translate(20, height/2);
+            tsCtx.rotate(-Math.PI/2);
+            tsCtx.textAlign = 'center';
+            tsCtx.fillText('Population', 0, 0);
+            tsCtx.restore();
+
+            // x-axis label
+            tsCtx.textAlign = 'center';
+            tsCtx.fillText('Time', width/2, height - 10);
+
+            // y-axis ticks and values
+            tsCtx.textAlign = 'right';
+            tsCtx.font = '14px Arial';
+            tsCtx.fillText('0', padding - 8, height - padding + 4);
+            tsCtx.fillText(maxVal.toString(), padding - 8, padding + 4);
+
+            // Time axis ticks and values
+            tsCtx.textAlign = 'center';
+            tsCtx.fillText('0', padding, height - padding/2);
+            tsCtx.fillText(timeSeriesData.maxTime.toString(), width - padding, height - padding/2);
+
+            // Only draw if we have at least 2 points
+            if (timeSeriesData.time.length >= 2) {
+                // Plot P(t)
+                tsCtx.strokeStyle = 'red';
+                tsCtx.beginPath();
+                timeSeriesData.time.forEach((t, i) => {
+                    const x = padding + (width - 2*padding) * t / timeSeriesData.maxTime;
+                    const y = height - padding - (height - 2*padding) * timeSeriesData.p[i] / maxVal;
+                    if (i === 0) tsCtx.moveTo(x, y);
+                    else tsCtx.lineTo(x, y);
+                });
+                tsCtx.stroke();
+
+                // Plot Q(t)
+                tsCtx.strokeStyle = 'blue';
+                tsCtx.beginPath();
+                timeSeriesData.time.forEach((t, i) => {
+                    const x = padding + (width - 2*padding) * t / timeSeriesData.maxTime;
+                    const y = height - padding - (height - 2*padding) * timeSeriesData.q[i] / maxVal;
+                    if (i === 0) tsCtx.moveTo(x, y);
+                    else tsCtx.lineTo(x, y);
+                });
+                tsCtx.stroke();
+
+                // Draw vertical black line at current time if simulation is complete
+                if (!isTracing && currentTrajectory) {
+                    const x = padding + (width - 2*padding) * timeSeriesData.maxTime / timeSeriesData.maxTime;
+                    tsCtx.strokeStyle = 'black';
+                    tsCtx.lineWidth = 2;
+                    tsCtx.beginPath();
+                    tsCtx.moveTo(x, padding);
+                    tsCtx.lineTo(x, height - padding);
+                    tsCtx.stroke();
+                    tsCtx.lineWidth = 1;
+                }
+            }
+
+            // Legend - moved to right of plot
+            const legendX = width - padding + 20;
+            tsCtx.textAlign = 'left';
+            tsCtx.font = '14px Arial';
+            tsCtx.fillStyle = 'red';
+            tsCtx.fillText('P(t)', legendX, padding + 20);
+            tsCtx.fillStyle = 'blue';
+            tsCtx.fillText('Q(t)', legendX, padding + 40);
+        }
+        function initializeTrajectory() {
+            const p0 = parseFloat(document.getElementById('p0').value);
+            const q0 = parseFloat(document.getElementById('q0').value);
+
+            if (p0 > params.pmax) document.getElementById('p0').value = params.pmax;
+            if (q0 > params.qmax) document.getElementById('q0').value = params.qmax;
+
+            timeSeriesData.time = [0];
+            timeSeriesData.p = [p0];
+            timeSeriesData.q = [q0];
+
+            currentTrajectory = {
+                points: [{p: p0, q: q0}],
+                currentTime: 0
+            };
+
+            isTracing = true;
+            showTrajectory = true;
+            trajectoryToggle.textContent = `Trajectory is on`;
+            requestAnimationFrame(traceTrajectory);
+        }
+
+        function updateTrajectory(dt) {
+            const { alpha, beta, gamma, delta, u, v } = params;
+            const lastPoint = currentTrajectory.points[currentTrajectory.points.length - 1];
+
+            // Use multiple substeps for better stability
+            const numSubsteps = 4;
+            const subDt = dt / numSubsteps;
+
+            let currentP = lastPoint.p;
+            let currentQ = lastPoint.q;
+
+            for(let substep = 0; substep < numSubsteps; substep++) {
+                // RK4 integration
+                const k1p = subDt * (alpha * currentP - gamma * currentP * currentP + u * currentP * currentQ);
+                const k1q = subDt * (beta * currentQ - delta * currentQ * currentQ + v * currentP * currentQ);
+
+                const k2p = subDt * (alpha * (currentP + k1p/2) - gamma * (currentP + k1p/2)**2 + u * (currentP + k1p/2) * (currentQ + k1q/2));
+                const k2q = subDt * (beta * (currentQ + k1q/2) - delta * (currentQ + k1q/2)**2 + v * (currentP + k1p/2) * (currentQ + k1q/2));
+
+                const k3p = subDt * (alpha * (currentP + k2p/2) - gamma * (currentP + k2p/2)**2 + u * (currentP + k2p/2) * (currentQ + k2q/2));
+                const k3q = subDt * (beta * (currentQ + k2q/2) - delta * (currentQ + k2q/2)**2 + v * (currentP + k2p/2) * (currentQ + k2q/2));
+
+                const k4p = subDt * (alpha * (currentP + k3p) - gamma * (currentP + k3p)**2 + u * (currentP + k3p) * (currentQ + k3q));
+                const k4q = subDt * (beta * (currentQ + k3q) - delta * (currentQ + k3q)**2 + v * (currentP + k3p) * (currentQ + k3q));
+
+                currentP += (k1p + 2*k2p + 2*k3p + k4p)/6;
+                currentQ += (k1q + 2*k2q + 2*k3q + k4q)/6;
+            }
+
+            currentTrajectory.points.push({p: currentP, q: currentQ});
+            currentTrajectory.currentTime += dt;
+
+            timeSeriesData.time.push(currentTrajectory.currentTime);
+            timeSeriesData.p.push(currentP);
+            timeSeriesData.q.push(currentQ);
+
+            while (timeSeriesData.time[0] < currentTrajectory.currentTime - timeSeriesData.maxTime) {
+                timeSeriesData.time.shift();
+                timeSeriesData.p.shift();
+                timeSeriesData.q.shift();
+            }
+        }
+
+
+        function drawTrajectory() {
+            if (!currentTrajectory || !showTrajectory) return;
+
+            ctx.strokeStyle = 'green';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const points = currentTrajectory.points;
+            let lastValidPoint = null;
+
+            points.forEach((point) => {
+                if (point.p >= 0 && point.q >= 0 && point.p <= params.pmax && point.q <= params.qmax) {
+                    if (!lastValidPoint) {
+                        ctx.moveTo(toCanvasX(point.p), toCanvasY(point.q));
+                    } else {
+                        ctx.lineTo(toCanvasX(point.p), toCanvasY(point.q));
+                    }
+                    lastValidPoint = point;
+                } else {
+                    lastValidPoint = null;  // Reset for next valid segment
+                }
+            });
+            ctx.stroke();
+
+            // Draw current point
+            const lastPoint = points[points.length-1];
+            if (lastPoint.p >= 0 && lastPoint.q >= 0 &&
+                lastPoint.p <= params.pmax && lastPoint.q <= params.qmax) {
+
+                // Draw black dot if simulation is complete
+                if (!isTracing) {
+                    ctx.fillStyle = 'black';
+                    ctx.beginPath();
+                    ctx.arc(
+                        toCanvasX(lastPoint.p),
+                        toCanvasY(lastPoint.q),
+                        5, 0, 2 * Math.PI
+                    );
+                    ctx.fill();
+                } else {
+                    // Green dot while tracing
+                    ctx.fillStyle = 'green';
+                    ctx.beginPath();
+                    ctx.arc(
+                        toCanvasX(lastPoint.p),
+                        toCanvasY(lastPoint.q),
+                        4, 0, 2 * Math.PI
+                    );
+                    ctx.fill();
+                }
+            }
+        }
+
+        function traceTrajectory(timestamp) {
+            if (!isTracing || !showTrajectory) return;  // Add showTrajectory check
+
+            updateTrajectory(timeSeriesData.dt * params.speed);
+            updatePlot();
+            drawTimeSeries();
+
+            if (currentTrajectory.currentTime < timeSeriesData.maxTime) {
+                requestAnimationFrame(traceTrajectory);
+            } else {
+                isTracing = false;
+                updatePlot();  // One final update to show completion markers
+                drawTimeSeries();
+            }
+        }
+
+        function animate(timestamp) {
+            if (!animationStartTime) animationStartTime = timestamp;
+            const elapsedTime = timestamp - animationStartTime;
+
+            if (elapsedTime > 10000) {
+                initializeParticles();
+                animationStartTime = timestamp;
+            }
+
+            if (params.speed > 0) {
+                updateParticles(0.016);
+            }
+            updatePlot();
+
+            if (showAnimation) {
+                requestAnimationFrame(animate);
+            }
+        }
+        function updatePlot() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            drawAxis();
+            drawNullclines();
+            drawVectorField();
+            drawEquilibriumPoints();
+            if (showAnimation) {
+                drawParticles();
+            }
+            drawTrajectory();
+            drawInitialPoint();
+        }
+
+        // Event listeners
+        document.getElementById('pmax').addEventListener('input', (e) => {
+            params.pmax = Math.max(0.5, parseFloat(e.target.value));
+            updatePlot();
+            drawTimeSeries();
+        });
+
+        document.getElementById('qmax').addEventListener('input', (e) => {
+            params.qmax = Math.max(0.5, parseFloat(e.target.value));
+            updatePlot();
+            drawTimeSeries();
+        });
+
+        document.getElementById('p0').addEventListener('input', (e) => {
+            if (parseFloat(e.target.value) > params.pmax) {
+                e.target.value = params.pmax;
+            }
+            updatePlot();
+        });
+
+        document.getElementById('q0').addEventListener('input', (e) => {
+            if (parseFloat(e.target.value) > params.qmax) {
+                e.target.value = params.qmax;
+            }
+            updatePlot();
+        });
+
+        trajectoryToggle.addEventListener('click', () => {
+            showTrajectory = !showTrajectory;
+            trajectoryToggle.textContent = `Trajectory is ${showTrajectory ? 'on' : 'off'}`;
+            updatePlot();
+        });
+
+        Object.keys(params).forEach(key => {
+            const input = document.getElementById(key);
+            if (input) {
+                input.addEventListener('input', (e) => {
+                    params[key] = parseFloat(e.target.value);
+                    updatePlot();
+                });
+            }
+        });
+
+        nullclinesToggle.addEventListener('click', () => {
+            showNullclines = !showNullclines;
+            nullclinesToggle.textContent = `Nullclines are ${showNullclines ? 'on' : 'off'}`;
+            updatePlot();
+        });
+
+        vectorFieldToggle.addEventListener('click', () => {
+            showVectorField = !showVectorField;
+            vectorFieldToggle.textContent = `Vector field is ${showVectorField ? 'on' : 'off'}`;
+            updatePlot();
+        });
+
+        document.getElementById('equilibriumToggle').addEventListener('click', () => {
+            showEquilibriumPoints = !showEquilibriumPoints;
+            document.getElementById('equilibriumToggle').textContent =
+                `Equilibrium points ${showEquilibriumPoints ? 'on' : 'off'}`;
+            updatePlot();
+        });
+
+        animationToggle.addEventListener('click', () => {
+            showAnimation = !showAnimation;
+            animationToggle.textContent = `Animation is ${showAnimation ? 'on' : 'off'}`;
+            if (showAnimation) {
+                initializeParticles();
+                animationStartTime = null;
+                requestAnimationFrame(animate);
+            } else {
+                updatePlot();
+            }
+        });
+
+        document.getElementById('traceButton').addEventListener('click', () => {
+            initializeTrajectory();
+        });
+
+        // Initial setup
+        equations.innerHTML = `
+            <p style="color: darkred;">P' = αP - γP² + uPQ</p>
+            <p style="color: darkblue;">Q' = βQ - δQ² + vPQ</p>
+        `;
+
+        // Initialize plots
+        updatePlot();
+        drawTimeSeries();
+    </script>
+</body>
+</html>
