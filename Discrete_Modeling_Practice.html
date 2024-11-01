@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Discrete-time Modeling Study Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+
+        .button-group {
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #situation-display, #equation-display, #state-variable-display, #predictive-equation-display {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        #graph-container {
+            width: 100%;
+            height: 300px;
+            background-color: white;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+        }
+
+        .instructions {
+            margin: 15px 0 25px 0;
+            line-height: 1.5;
+            color: #444;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Discrete-time Modeling Study Tool</h1>
+        <div class="instructions">
+            Click on New Question to see a new situation. Try the other buttons to see what happens.
+            After practicing a few times, try to figure out the state variable, change equation, and graph, without looking.
+            Then click the buttons to check your answers.
+        </div>
+
+        <div class="button-group">
+            <button onclick="generateNewQuestion()">New Question</button>
+            <button onclick="toggleElement('state-variable-display')">See State Variable</button>
+            <button onclick="toggleElement('equation-display')">Show Change Equation</button>
+            <button onclick="toggleElement('predictive-equation-display')">Predictive Equation</button>
+            <button onclick="toggleElement('graph-container')">See Graph</button>
+        </div>
+
+        <div id="situation-display">
+            Click "New Question" to start!
+        </div>
+
+        <div id="state-variable-display" class="hidden">
+            State variable will appear here
+        </div>
+
+        <div id="equation-display" class="hidden">
+            Equation will appear here
+        </div>
+
+        <div id="predictive-equation-display" class="hidden">
+            Predictive equation will appear here
+        </div>
+
+        <div id="graph-container" class="hidden">
+            <canvas id="graph"></canvas>
+        </div>
+    </div>
+    <script>
+    let currentProblem = null;
+    let chart = null;
+
+    // Linear scenario parameters
+    const linearContainers = ["basket", "house", "bucket", "dish", "pool", "closet"];
+    const linearThings = ["apples", "bicycles", "monkeys", "pillows", "slugs", "cookies", "dollars", "kittens", "tacos", "gold bars"];
+    const linearChanges = ["adds", "takes away"];
+
+    // Exponential scenario parameters
+    const expContainers = ["basement", "tree", "hill", "pond", "refrigerator", "dorm room"];
+    const expThings = ["alpacas", "fruitflies", "bacteria", "nematodes", "spiders", "mold spores", "cute bunnies", "fierce rabbits", "self-replicating nanobots", "tribbles"];
+    const expChanges = ["increases", "decreases"];
+
+    // Time units
+    const timeUnits = ["hour", "day", "week", "month"];
+
+    function getRandomElement(array) {
+        return array[Math.floor(Math.random() * array.length)];
+    }
+
+    function getRandomNumber(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function generateLinearSituation() {
+        const container = getRandomElement(linearContainers);
+        const initialNumber = getRandomNumber(5, 50);
+        const thing = getRandomElement(linearThings);
+        const change = getRandomElement(linearChanges);
+        const changeRate = getRandomNumber(2, 7);
+        const timeUnit = getRandomElement(timeUnits);
+        const stateVariable = thing.charAt(0).toUpperCase();
+
+        const rate = change === "adds" ? changeRate : -changeRate;
+
+        return {
+            situation: `A ${container} starts with ${initialNumber} ${thing}. Someone ${change} ${changeRate} ${thing} every ${timeUnit}.`,
+            equation: `Δ${stateVariable}/Δt = ${rate}`,
+            stateVariable: `Let ${stateVariable} be the number of ${thing} in the ${container}`,
+            predictiveEquation: `${stateVariable} = ${rate}t + ${initialNumber}`,
+            type: "linear",
+            rate: rate,
+            initial: initialNumber,
+            thing: thing,
+            timeUnit: timeUnit
+        };
+    }
+
+    function generateExponentialSituation() {
+        const container = getRandomElement(expContainers);
+        const initialNumber = getRandomNumber(50, 500);
+        const thing = getRandomElement(expThings);
+        const change = getRandomElement(expChanges);
+        const percent = getRandomNumber(10, 90);
+        const timeUnit = getRandomElement(timeUnits);
+        const stateVariable = thing.charAt(0).toUpperCase();
+
+        const rate = change === "increases" ? percent/100 : -percent/100;
+        const growthFactor = 1 + rate;
+
+        return {
+            situation: `A ${container} starts with ${initialNumber} ${thing}. The number of ${thing} ${change} by ${percent}% every ${timeUnit}.`,
+            equation: `Δ${stateVariable}/Δt = ${rate}${stateVariable}`,
+            stateVariable: `Let ${stateVariable} be the number of ${thing} in the ${container}`,
+            predictiveEquation: `${stateVariable} = ${initialNumber}(${growthFactor.toFixed(2)})^t`,
+            type: "exponential",
+            rate: rate,
+            initial: initialNumber,
+            thing: thing,
+            timeUnit: timeUnit
+        };
+    }
+
+    function generateNewQuestion() {
+        // Randomly choose between linear and exponential
+        currentProblem = Math.random() < 0.5 ? generateLinearSituation() : generateExponentialSituation();
+
+        // Update displays
+        document.getElementById('situation-display').textContent = currentProblem.situation;
+        document.getElementById('equation-display').textContent = currentProblem.equation;
+        document.getElementById('state-variable-display').textContent = currentProblem.stateVariable;
+        document.getElementById('predictive-equation-display').textContent = currentProblem.predictiveEquation;
+
+        // Show situation, hide others
+        document.getElementById('situation-display').classList.remove('hidden');
+        document.getElementById('equation-display').classList.add('hidden');
+        document.getElementById('state-variable-display').classList.add('hidden');
+        document.getElementById('predictive-equation-display').classList.add('hidden');
+        document.getElementById('graph-container').classList.add('hidden');
+
+        // Update graph data
+        updateGraph();
+    }
+
+    function toggleElement(elementId) {
+        const element = document.getElementById(elementId);
+        element.classList.toggle('hidden');
+
+        if (elementId === 'graph-container' && !element.classList.contains('hidden')) {
+            updateGraph();
+        }
+    }
+
+    function updateGraph() {
+        if (chart) {
+            chart.destroy();
+        }
+
+        const ctx = document.getElementById('graph').getContext('2d');
+        const timePoints = Array.from({length: 11}, (_, i) => i);
+        let values;
+
+        if (currentProblem.type === 'linear') {
+            values = timePoints.map(t => currentProblem.initial + currentProblem.rate * t);
+        } else {
+            values = timePoints.map(t => currentProblem.initial * Math.pow(1 + currentProblem.rate, t));
+        }
+
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timePoints,
+                datasets: [{
+                    label: `Number of ${currentProblem.thing}`,
+                    data: values,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: `Time (${currentProblem.timeUnit}s)`
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: `Number of ${currentProblem.thing}`,
+                        },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+</script>
+</body>
+</html>

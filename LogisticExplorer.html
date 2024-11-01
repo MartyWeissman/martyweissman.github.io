@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Logistic Growth Model Explorer</title>
+    <style>
+        .container {
+            display: flex;
+            max-width: 1200px;
+            margin: 20px auto;
+            font-family: Arial, sans-serif;
+        }
+        .plot-container {
+            flex: 1;
+            padding: 20px;
+        }
+        .input-container {
+            flex: 1;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th {
+            text-align: center;
+            padding: 2px;
+            border: 1px solid #ddd;
+        }
+        td {
+            padding: 2px;
+            border: 1px solid #ddd;
+            text-align: right;
+        }
+        input {
+            width: 80px;
+            margin: 2px;
+            padding: 2px;
+            border: 1px solid #ccc;
+        }
+        .equation {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .fraction {
+            display: inline-block;
+            vertical-align: middle;
+            text-align: center;
+            margin: 0 3px;
+        }
+        .fraction > span {
+            display: block;
+            padding: 0 3px;
+        }
+        .fraction > span:first-child {
+            border-bottom: 1px solid black;
+        }
+        canvas {
+            border: 1px solid #ddd;
+        }
+        .parameter {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .parameter input {
+            padding: 5px;
+        }
+        .button-container {
+            margin-bottom: 20px;
+        }
+        .btn-blue {
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn-gray {
+            padding: 10px 20px;
+            background-color: #808080;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .parameter-container {
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .data-input {
+            border: none;
+            outline: none;
+            background: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="plot-container">
+            <canvas id="populationChart" width="500" height="400"></canvas>
+            <div class="equation">
+                P' = b P (1 - <div class="fraction"><span>P</span><span>k</span></div>)
+                &nbsp;&nbsp;&nbsp;&nbsp;
+                P(t) = <div class="fraction">
+                    <span>k e<sup>b(t-t₀)</sup></span>
+                    <span>1 + e<sup>b(t-t₀)</sup></span>
+                </div>
+            </div>
+            <div id="rss" style="text-align: center; margin-top: 10px;"></div>
+        </div>
+        <div class="input-container">
+            <table id="dataTable">
+                <tr>
+                    <th>Time (t)</th>
+                    <th>Population (P)</th>
+                </tr>
+                <tr><td><input type="number" class="time data-input" step="any"></td><td><input type="number" class="population data-input" step="any"></td></tr>
+                <tr><td><input type="number" class="time data-input" step="any"></td><td><input type="number" class="population data-input" step="any"></td></tr>
+                <tr><td><input type="number" class="time data-input" step="any"></td><td><input type="number" class="population data-input" step="any"></td></tr>
+                <tr><td><input type="number" class="time data-input" step="any"></td><td><input type="number" class="population data-input" step="any"></td></tr>
+                <tr><td><input type="number" class="time data-input" step="any"></td><td><input type="number" class="population data-input" step="any"></td></tr>
+                <tr><td><input type="number" class="time data-input" step="any"></td><td><input type="number" class="population data-input" step="any"></td></tr>
+                <tr><td><input type="number" class="time data-input" step="any"></td><td><input type="number" class="population data-input" step="any"></td></tr>
+                <tr><td><input type="number" class="time data-input" step="any"></td><td><input type="number" class="population data-input" step="any"></td></tr>
+                <tr><td><input type="number" class="time data-input" step="any"></td><td><input type="number" class="population data-input" step="any"></td></tr>
+                <tr><td><input type="number" class="time data-input" step="any"></td><td><input type="number" class="population data-input" step="any"></td></tr>
+            </table>
+            <div class="button-container">
+                <button onclick="clearData()" class="btn-blue">Clear Data</button>
+                <button onclick="toggleResiduals()" class="btn-gray" id="showRSSBtn">Show RSS</button>
+            </div>
+            <div class="parameter-container">
+                <div class="parameter">
+                    <label>Carrying capacity (k):</label>
+                    <input type="number" id="k-value" value="100" step="any" oninput="updatePlot()">
+                </div>
+                <div class="parameter">
+                    <label>Stretch (b):</label>
+                    <input type="number" id="b-value" value="1" step="0.1" oninput="updatePlot()">
+                </div>
+                <div class="parameter">
+                    <label>Time-shift (t₀):</label>
+                    <input type="number" id="t0-value" value="0" step="any" oninput="updatePlot()">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let showResiduals = false;
+
+        function toggleResiduals() {
+            showResiduals = !showResiduals;
+            document.getElementById('showRSSBtn').textContent =
+                showResiduals ? "Hide RSS" : "Show RSS";
+            updatePlot();
+        }
+
+        function drawAxes(canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const padding = 60;
+            const width = canvas.width - 2 * padding;
+            const height = canvas.height - 2 * padding;
+
+            ctx.beginPath();
+            ctx.strokeStyle = '#000';
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, canvas.height - padding);
+            ctx.lineTo(canvas.width - padding, canvas.height - padding);
+            ctx.stroke();
+
+            ctx.fillStyle = 'black';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Time (t)', canvas.width/2, canvas.height - 10);
+            ctx.save();
+            ctx.translate(20, canvas.height/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText('Population (P)', 0, 0);
+            ctx.restore();
+        }
+
+        function getDataPoints() {
+            const points = [];
+            const times = document.getElementsByClassName('time');
+            const pops = document.getElementsByClassName('population');
+
+            for (let i = 0; i < times.length; i++) {
+                const t = parseFloat(times[i].value);
+                const p = parseFloat(pops[i].value);
+                if (!isNaN(t) && !isNaN(p)) {
+                    points.push({t: t, P: p});
+                }
+            }
+            return points.sort((a, b) => a.t - b.t);
+        }
+
+        function logisticSolution(t, k, b, t0) {
+            const u = Math.exp(b * (t - t0));
+            return k * u / (1 + u);
+        }
+
+        function updatePlot() {
+            const canvas = document.getElementById('populationChart');
+            const ctx = canvas.getContext('2d');
+            const padding = 60;
+            const width = canvas.width - 2 * padding;
+            const height = canvas.height - 2 * padding;
+
+            const k = parseFloat(document.getElementById('k-value').value);
+            const b = parseFloat(document.getElementById('b-value').value);
+            const t0 = parseFloat(document.getElementById('t0-value').value);
+            const points = getDataPoints();
+
+            let rss = 0;
+            points.forEach(point => {
+                const predicted = logisticSolution(point.t, k, b, t0);
+                const residual = point.P - predicted;
+                rss += residual * residual;
+            });
+
+            document.getElementById('rss').textContent =
+                `Residual Sum of Squares (RSS): ${rss.toFixed(2)}`;
+
+            let tMax = 10;
+            let PMax = k * 1.1;
+
+            if (points.length > 0) {
+                tMax = Math.max(tMax, Math.max(...points.map(p => p.t)) * 1.1);
+                PMax = Math.max(PMax, Math.max(...points.map(p => p.P)) * 1.1);
+            }
+
+            function scaleX(x) { return padding + (x / tMax) * width; }
+            function scaleY(y) { return canvas.height - padding - (y / PMax) * height; }
+
+            drawAxes(canvas);
+
+            // Plot logistic curve
+            ctx.beginPath();
+            ctx.strokeStyle = 'red';
+            const curvePoints = [];
+            for (let t = 0; t <= tMax; t += tMax/500) {
+                const P = logisticSolution(t, k, b, t0);
+                const x = scaleX(t);
+                const y = scaleY(P);
+                curvePoints.push({x, y, t, P});
+                if (t === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Plot residual squares
+            if (showResiduals) {
+                ctx.fillStyle = 'rgba(64, 64, 64, 0.3)';
+                points.forEach(point => {
+                    const predicted = logisticSolution(point.t, k, b, t0);
+                    const x1 = scaleX(point.t);
+                    const y1 = scaleY(point.P);
+                    const y2 = scaleY(predicted);
+
+                    const isAbove = point.P > predicted;
+                    const squareWidth = Math.abs(y1 - y2);
+                    const x2 = isAbove ? x1 - squareWidth : x1 + squareWidth;
+
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.lineTo(x1, y2);
+                    ctx.closePath();
+                    ctx.fill();
+                });
+            }
+
+            // Plot data points
+            ctx.fillStyle = 'blue';
+            points.forEach(point => {
+                ctx.beginPath();
+                ctx.arc(scaleX(point.t), scaleY(point.P), 4, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            // Plot carrying capacity line
+            ctx.beginPath();
+            ctx.strokeStyle = 'green';
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(padding, scaleY(k));
+            ctx.lineTo(canvas.width - padding, scaleY(k));
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Add axis labels
+            ctx.fillStyle = 'black';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'right';
+
+            for (let i = 0; i <= 5; i++) {
+                const t = tMax * i / 5;
+                const P = PMax * i / 5;
+                ctx.fillText(t.toFixed(1), scaleX(t) - 5, canvas.height - padding + 20);
+                ctx.fillText(P.toFixed(1), padding - 5, scaleY(P) + 4);
+            }
+
+            ctx.fillText(k.toFixed(1), padding - 5, scaleY(k) + 4);
+        }
+
+        function clearData() {
+            const times = document.getElementsByClassName('time');
+            const pops = document.getElementsByClassName('population');
+            for (let i = 0; i < times.length; i++) {
+                times[i].value = '';
+                pops[i].value = '';
+            }
+            updatePlot();
+        }
+
+        updatePlot();
+
+        document.querySelectorAll('.time, .population').forEach(input => {
+            input.addEventListener('input', updatePlot);
+        });
+    </script>
+</body>
+</html>
