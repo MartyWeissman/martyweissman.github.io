@@ -356,7 +356,7 @@
                 return;
             }
 
-            const h = 0.1;
+            const h = 0.01;
 
             function f(x, p) {
                 return [
@@ -386,7 +386,7 @@
             drawVectorField();
             drawTrajectoryGraph();
 
-            const delay = (19 - speed) * 10;
+            const delay = (19 - speed) * 1;
             animationId = setTimeout(() => {
                 requestAnimationFrame(animateParticle);
             }, delay);
