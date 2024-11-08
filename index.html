@@ -1,125 +1,232 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mathematical Modeling and Simulations</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/1.5.10/pico.min.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
+        :root:not([data-theme="dark"]) {
+            --primary: #43a047;
+            --primary-hover: #388e3c;
+            --primary-focus: rgba(67, 160, 71, 0.125);
+        }
+
+        [data-theme="dark"] {
+            --primary: #81c784;
+            --primary-hover: #66bb6a;
+            --primary-focus: rgba(129, 199, 132, 0.25);
+        }
+
+        .tool-grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .tool-card {
+            padding: 1rem;
+            background: rgba(67, 160, 71, 0.05);
+            border-radius: 8px;
+            height: 100%;
+        }
+
+        .tool-card h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.1rem;
+        }
+
+        .tool-card p {
+            margin: 0;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        article > header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        nav {
+            position: sticky;
+            top: 0;
+            background: var(--background-color);
+            padding: 1rem 0;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--primary-focus);
+            z-index: 100;
+        }
+
+        nav ul {
+            display: flex;
+            gap: 1rem;
             margin: 0;
             padding: 0;
-            color: #333;
+            list-style: none;
+            flex-wrap: wrap;
+            justify-content: center;
         }
-        .container {
-            width: 90%;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        header {
-            background-color: #f4f4f4;
-            padding: 20px 0;
-            text-align: center;
-        }
-        h1 {
-            margin: 0;
-        }
-        main {
-            padding: 20px 0;
-        }
-        footer {
-            background-color: #f4f4f4;
-            text-align: center;
-            padding: 10px 0;
-            font-size: 0.8em;
-            margin-top: 40px;
-        }
-        .simulations {
-            list-style-type: none;
-            padding: 0;
-        }
-        .simulations li {
-            background-color: #f9f9f9;
-            margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        a {
-            color: #0066cc;
+
+        nav a {
             text-decoration: none;
+            color: var(--primary);
         }
-        a:hover {
+
+        nav a:hover {
+            color: var(--primary-hover);
             text-decoration: underline;
+        }
+
+        section {
+            scroll-margin-top: 5rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-description {
+            margin-bottom: 1rem;
+            font-style: italic;
+        }
+
+        footer {
+            margin-top: 3rem;
+            text-align: center;
+            font-size: 0.9rem;
         }
     </style>
 </head>
 <body>
-    <header>
-        <div class="container">
-            <h1>Mathematical Modeling and Simulations</h1>
-            <p>By <a href="http://martyweissman.com">Martin H. Weissman</a></p>
-        </div>
-    </header>
+    <main class="container">
+        <nav>
+            <ul>
+                <li><a href="#simulations">Simulations</a></li>
+                <li><a href="#explorers">Explorers</a></li>
+                <li><a href="#study-aids">Study Aids</a></li>
+                <li><a href="#data-sets">Data Sets</a></li>
+                <li><a href="#upcoming">Coming Soon</a></li>
+            </ul>
+        </nav>
 
-    <main>
-        <div class="container">
+        <article>
+            <header>
+                <h1>Learning Tools for Mathematical Modeling</h1>
+                <p>By <a href="http://martyweissman.com">Martin H. Weissman</a></p>
+            </header>
+
             <p>Welcome! The following are tools for students learning mathematical modeling in the life sciences.</p>
 
-            <h2>Simulations</h2>
-            Simulations of phenomena in the natural world.
-            <ul class="simulations">
-                <li><a href="Caffeine_Simulator.html">Caffeine simulator</a>.  Track the caffeine in your body, with three adjustable doses each day.</li>
-                <li><a href="SharkTuna_Interactions.html">Shark and tuna interaction-counter</a>.  Relate number of interactions to populations of sharks and tuna.</li>
-                <li><a href="SharkTuna_Trajectory.html">Shark and tuna trajectories</a>.  Trajectories in state space and time-series.  Interventions.</li>
-                <li><a href="InsulinGlucose_response.html">Insulin Glucose response</a>.  Set parameters for insulin sensitivty, beta cell mass, etc.  Look at stead state or a glucose challenge test.  Uses a minimal model.</li>
-                <li><a href="Gentamicin_Dosage_Simulator.html">Simulation of Gentamicin Dosage.</a>  Adjust dosage, frequency, infusion duration to explore effect on drug in bloodstream.  Exhibits 1st order kinetics (exponential decay).</li>
-        
-            </ul>
-            <h2>Tools</h2>
-            Tools for exploring different kinds of equations.
-            <ul class="simulations">
-                <li><a href="Self_Interaction_Simulator.html">Self-interaction Simulator</a>  Relate the number of self-interactions to populations of moving organisms in a dish.</li>
-                <li><a href="Vect_Field.html">Dynamic vector field explorer</a>.  Play with your own vector fields in the plane, and watch particles blow in the wind.</li>
-                <li><a href="Data_Plots_Log_Scaling.html">Data plotter with log-scaling.</a>Enter 10 data points, experiment with log-scaling and line of best fit.</li>
-                <li><a href="LogisticExplorer.html">Logistic growth explorer.</a>Explore parameter changes, and try to fit logistic model to your data by minimizing the residual sum of squares.</li>
-                <li><a href="Equilibrium_Bifurcation.html">Exploration of equilibrium and bifurcation.</a>  Shift a parameter, and choose inflow/outflow functions to explore 1-dimensional dynamical systems with equilibrium and bifurcations.</li>
-                <li><a href="GenLotkaVolterra.html">Generalized Lotka-Volterra explorer.</a>  Control parameters in a 2-dimensional generalized Lotka-Volterra system.  Allows exploration of predator-prey, competition, cooperation, coupled with logistic growth.</li>
-                <li><a href="SHO_Simulator.html">Simple harmonic oscillator (SHO) explorer.</a>  Control parameters in the simple harmonic oscillator.  Allows exploration of trajectory shape and period of oscillation.</li>
-            </ul>
-            <h2>Study aids</h2>
-            Tools to practice fundamental skills, prepare for tests, etc.
-            <ul class="simulations">
-                <li><a href="Discrete_Modeling_Practice.html">Fundamental modeling practice.</a>Practice with randomly generated situations, figure out change equations, graphs, and more.  Click buttons to see correct answers.</li>
-                <li><a href="Trajectory_TimeSeries_Practice.html">Trajectory and time-series practice.</a>Practice going back and forth between trajectories in state space and time-series plots.  Click buttons to see correct answers.</li>
-            </ul>
-            <h2>Data Sets</h2>
-            <ul class="simulations">
-                <li><a href="TunaSharks_Trieste.csv">Tuna and sharks in Trieste</a>.  Real fisheries data from the port in Trieste.  Kilograms of sharks and tuna caught each year.</li>
-            </ul>
-            <h2>Coming someday</h2>
-            <ul class="somedays">
-                <li>Slope/derivative explorer for user-defined function.</li>
-                <li>Insulin-glucose with dynamic compensation</li>
-                <li>Simple harmonic oscillator simulator, molecular vibrations, wavelengths.</li>
-                <li>Conserved quantities and closed trajectories.</li>
-                <li>Potential well and oscillation explorer.</li>
-                <li>Limit cycle explorer.  Body temperature regulation.</li>
-                <li>Random walk with bias, tracker, bell curve.</li>
-                <li>Diffusion modeler, square root law.</li>
-                <li>Atmospheric random walk.  Markov process</li>
-                <li>Markov process explorer.</li>
-            </ul>
-                
-        </div>
-    </main>
+            <section id="simulations">
+                <h2>Simulations</h2>
+                <p class="section-description">Simulations of phenomena in the natural world.</p>
+                <div class="tool-grid">
+                    <div class="tool-card">
+                        <h3><a href="Caffeine_Simulator.html">Caffeine Simulator</a></h3>
+                        <p>Track the caffeine in your body, with three adjustable doses each day.</p>
+                    </div>
+                    <div class="tool-card">
+                        <h3><a href="SharkTuna_Interactions.html">Shark and Tuna Interaction-Counter</a></h3>
+                        <p>Relate number of interactions to populations of sharks and tuna.</p>
+                    </div>
+                    <div class="tool-card">
+                        <h3><a href="SharkTuna_Trajectory.html">Shark and Tuna Trajectories</a></h3>
+                        <p>Trajectories in state space and time-series. Interventions.</p>
+                    </div>
+                    <div class="tool-card">
+                        <h3><a href="InsulinGlucose_response.html">Insulin Glucose Response</a></h3>
+                        <p>Set parameters for insulin sensitivity, beta cell mass, etc. Look at steady state or a glucose challenge test. Uses a minimal model.</p>
+                    </div>
+                    <div class="tool-card">
+                        <h3><a href="Gentamicin_Dosage_Simulator.html">Gentamicin pharmacokinetics</a></h3>
+                        <p>Adjust protocols to explore effect on drug in bloodstream. Exhibits 1st order kinetics.</p>
+                    </div>
+                </div>
+            </section>
 
-    <footer>
-        <div class="container">
+            <section id="explorers">
+                <h2>Explorers</h2>
+                <p class="section-description">Tools for exploring different kinds of equations.</p>
+                <div class="tool-grid">
+                    <div class="tool-card">
+                        <h3><a href="Self_Interaction_Simulator.html">Self-interaction Simulator</a></h3>
+                        <p>Relate the number of self-interactions to populations of moving organisms in a dish.</p>
+                    </div>
+                    <div class="tool-card">
+                        <h3><a href="Vect_Field.html">Dynamic Vector Field Explorer</a></h3>
+                        <p>Play with your own vector fields in the plane, and watch particles blow in the wind.</p>
+                    </div>
+                    <div class="tool-card">
+                        <h3><a href="Data_Plots_Log_Scaling.html">Data Plotter with Log-scaling</a></h3>
+                        <p>Enter 10 data points, experiment with log-scaling and line of best fit.</p>
+                    </div>
+                    <div class="tool-card">
+                        <h3><a href="LogisticExplorer.html">Logistic Growth Explorer</a></h3>
+                        <p>Explore parameter changes, and try to fit logistic model to your data by minimizing the residual sum of squares.</p>
+                    </div>
+                    <div class="tool-card">
+                        <h3><a href="Equilibrium_Bifurcation.html">Exploration of Equilibrium and Bifurcation</a></h3>
+                        <p>Shift a parameter, and choose inflow/outflow functions to explore 1-dimensional dynamical systems with equilibrium and bifurcations.</p>
+                    </div>
+                    <div class="tool-card">
+                        <h3><a href="GenLotkaVolterra.html">Generalized Lotka-Volterra Explorer</a></h3>
+                        <p>Control parameters in a 2-dimensional generalized Lotka-Volterra system. Allows exploration of predator-prey, competition, cooperation, coupled with logistic growth.</p>
+                    </div>
+                    <div class="tool-card">
+                        <h3><a href="SHO_Simulator.html">Simple Harmonic Oscillator (SHO) Explorer</a></h3>
+                        <p>Control parameters in the simple harmonic oscillator. Allows exploration of trajectory shape and period of oscillation.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="study-aids">
+                <h2>Study Aids</h2>
+                <p class="section-description">Tools to practice fundamental skills, prepare for tests, etc.</p>
+                <div class="tool-grid">
+                    <div class="tool-card">
+                        <h3><a href="Discrete_Modeling_Practice.html">Fundamental Modeling Practice</a></h3>
+                        <p>Practice with randomly generated situations, figure out change equations, graphs, and more. Click buttons to see correct answers.</p>
+                    </div>
+                    <div class="tool-card">
+                        <h3><a href="Trajectory_TimeSeries_Practice.html">Trajectory and Time-series Practice</a></h3>
+                        <p>Practice going back and forth between trajectories in state space and time-series plots. Click buttons to see correct answers.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="data-sets">
+                <h2>Data Sets</h2>
+                <div class="tool-grid">
+                    <div class="tool-card">
+                        <h3><a href="TunaSharks_Trieste.csv">Tuna and Sharks in Trieste</a></h3>
+                        <p>Real fisheries data from the port in Trieste. Kilograms of sharks and tuna caught each year.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="upcoming">
+                <h2>Coming Someday</h2>
+                <div class="tool-grid">
+                    <div class="tool-card">
+                        <h3>Future Development</h3>
+                        <ul>
+                            <li>Slope/derivative explorer for user-defined function</li>
+                            <li>Insulin-glucose with dynamic compensation</li>
+                            <li>Molecular vibrations, wavelengths</li>
+                            <li>Conserved quantities and closed trajectories</li>
+                            <li>Potential well and oscillation explorer</li>
+                            <li>Limit cycle explorer. Body temperature regulation</li>
+                            <li>Random walk with bias, tracker, bell curve</li>
+                            <li>Diffusion modeler, square root law</li>
+                            <li>Atmospheric random walk. Markov process</li>
+                            <li>Markov process explorer</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </article>
+
+        <footer>
             <p>&copy; 2024 Martin H. Weissman. All rights reserved.</p>
             <p>All simulations/software here are free for noncommercial use and adaptation under a <a href="https://choosealicense.com/licenses/gpl-3.0/">GNU 3.0 General Public License</a>.</p>
-        </div>
-    </footer>
+        </footer>
+    </main>
 </body>
 </html>
