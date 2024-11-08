@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Logarithm Definition Practice Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+
+        .button-group {
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #question-display, #exponent-question-display, #answer-display {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 1.2em;
+        }
+
+        .instructions {
+            margin: 15px 0 25px 0;
+            line-height: 1.5;
+            color: #444;
+        }
+
+        sub {
+            font-size: 0.7em;
+            vertical-align: sub;
+        }
+
+        .sqrt-symbol {
+            display: inline-block;
+            transform: scale(1.2, 1);
+            margin-right: 2px;
+        }
+
+        .sqrt-content {
+            display: inline-block;
+            border-top: 1px solid black;
+            padding-top: 1px;
+        }
+
+        sup {
+            font-size: 0.7em;
+            vertical-align: super;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Logarithm Definition Practice Tool</h1>
+        <div class="instructions">
+            Click "New Question" to see a new logarithm problem. Try to determine the answer using the definition of logarithms, then use the buttons to check your work.
+        </div>
+
+        <div class="button-group">
+            <button onclick="generateNewQuestion()">New Question</button>
+            <button onclick="toggleElement('exponent-question-display')">Display exponent-question</button>
+            <button onclick="toggleElement('answer-display')">Display answer</button>
+        </div>
+
+        <div id="question-display">
+            Click "New Question" to start!
+        </div>
+
+        <div id="exponent-question-display" class="hidden">
+            Exponent question will appear here
+        </div>
+
+        <div id="answer-display" class="hidden">
+            Answer will appear here
+        </div>
+    </div>
+
+    <script>
+    let currentProblem = null;
+
+    const bases = [2, 3, 'e', 10];
+    const numericExponents = [-3, -2, -1, 0, 0.5, 1, 2, 3, 4];
+    const symbolicExponents = ['t', 'ux', '-4t', 't - b'];
+    const allExponents = [...numericExponents, ...symbolicExponents];
+
+    function getRandomElement(array) {
+        return array[Math.floor(Math.random() * array.length)];
+    }
+
+    function isNumeric(exponent) {
+        return typeof exponent === 'number';
+    }
+
+    function formatValue(base, exponent) {
+        // Handle symbolic exponents
+        if (!isNumeric(exponent)) {
+            return `${base}<sup>${exponent}</sup>`;
+        }
+
+        // Handle square root
+        if (exponent === 0.5) {
+            return `<span class="sqrt-symbol">√</span><span class="sqrt-content">${base}</span>`;
+        }
+
+        if (base === 'e') {
+            if (exponent === 0) return "1";
+            if (exponent === 1) return "e";
+            if (exponent === 2) return "e²";
+            if (exponent === 3) return "e³";
+            if (exponent === 4) return "e⁴";
+            if (exponent === -1) return "1/e";
+            if (exponent === -2) return "1/e²";
+            if (exponent === -3) return "1/e³";
+        } else {
+            let value = Math.pow(base, Math.abs(exponent));
+            if (exponent >= 0) {
+                return value.toString();
+            } else {
+                return `1/${value}`;
+            }
+        }
+    }
+
+    function formatQuestion(base, value) {
+        if (base === 'e') {
+            return `What is ln(${value})?`;
+        } else {
+            return `What is log<sub>${base}</sub>(${value})?`;
+        }
+    }
+
+    function formatAnswer(exponent) {
+        if (exponent === 0.5) {
+            return "The answer is 0.5 or 1/2";
+        }
+        return `The answer is ${exponent}`;
+    }
+
+    function generateNewQuestion() {
+        const base = getRandomElement(bases);
+        const exponent = getRandomElement(allExponents);
+        const value = formatValue(base, exponent);
+
+        currentProblem = {
+            base: base,
+            exponent: exponent,
+            value: value,
+            question: formatQuestion(base, value)
+        };
+
+        // Update displays
+        document.getElementById('question-display').innerHTML = currentProblem.question;
+
+        let exponentQuestion;
+        if (base === 'e') {
+            exponentQuestion = `What power of e equals ${value}?`;
+        } else {
+            exponentQuestion = `What power of ${base} equals ${value}?`;
+        }
+        document.getElementById('exponent-question-display').innerHTML = exponentQuestion;
+
+        document.getElementById('answer-display').textContent = formatAnswer(currentProblem.exponent);
+
+        // Show question, hide others
+        document.getElementById('question-display').classList.remove('hidden');
+        document.getElementById('exponent-question-display').classList.add('hidden');
+        document.getElementById('answer-display').classList.add('hidden');
+    }
+
+    function toggleElement(elementId) {
+        const element = document.getElementById(elementId);
+        element.classList.toggle('hidden');
+    }
+    </script>
+</body>
+</html>
