@@ -134,13 +134,14 @@
         </div>
         <div class="input-row">
           <label>Ymin = </label>
-          <input type="number" id="ymin" value="-5" step="0.5">
+          <input type="number" id="ymin" value="-1" step="0.5">
         </div>
         <div class="input-row">
           <label>Ymax = </label>
-          <input type="number" id="ymax" value="5" step="0.5">
+          <input type="number" id="ymax" value="1" step="0.5">
         </div>
         <button id="autozoom">Autozoom</button>
+        <button id="reset">Reset window</button>
         <div id="error" class="error"></div>
       </div>
     </div>
@@ -434,10 +435,19 @@
       updateVisualization();
     }
 
+    // In the JavaScript, add:
+    function resetWindow() {
+        document.getElementById('xmin').value = -5;
+        document.getElementById('xmax').value = 5;
+        document.getElementById('ymin').value = -1;
+        document.getElementById('ymax').value = 1;
+        updateVisualization();
+    }
+
     let xMin = -5;
     let xMax = 5;
-    let yMin = -5;
-    let yMax = 5;
+    let yMin = -1;
+    let yMax = 1;
     let equilibriumPoints = [];
 
     // Update X-axis labels
@@ -473,9 +483,15 @@ function drawBall(ctx, x, opacity) {
     ctx.strokeStyle = 'black';
     ctx.stroke();
 }
+let lastScreenX = null;
+let lastCheckTime = null;
 
 function animate(timestamp) {
-    if (!lastTimestamp) lastTimestamp = timestamp;
+    if (!lastTimestamp) {
+        lastTimestamp = timestamp;
+        lastCheckTime = timestamp;
+        lastScreenX = transformX(simulationX);
+    }
     const dt = (timestamp - lastTimestamp) / 1000;
     lastTimestamp = timestamp;
 
@@ -483,7 +499,19 @@ function animate(timestamp) {
         // Update position
         simulationX = rk4Step(simulationX, dt);
 
-        // Allow ball to go a bit beyond the window before stopping
+        // Check for minimal movement every 0.1 seconds
+        if (timestamp - lastCheckTime > 100) {  // 100ms = 0.1s
+            const newScreenX = transformX(simulationX);
+            const screenMovement = Math.abs(newScreenX - lastScreenX);
+            if (screenMovement < 0.5) {
+                isSimulating = false;
+                return;
+            }
+            lastScreenX = newScreenX;
+            lastCheckTime = timestamp;
+        }
+
+        // Check for out of bounds
         const margin = 0.05 * (xMax - xMin);
         if (simulationX < xMin - margin || simulationX > xMax + margin) {
             isSimulating = false;
@@ -519,14 +547,17 @@ portraitCanvas.addEventListener('mouseleave', () => {
     }
 });
 
+// Reset these when starting new simulation
 portraitCanvas.addEventListener('click', (e) => {
     const rect = portraitCanvas.getBoundingClientRect();
-    const scaleX = portraitCanvas.width / rect.width;  // Account for any scaling
+    const scaleX = portraitCanvas.width / rect.width;
     const x = xMin + (xMax - xMin) * (e.clientX - rect.left) * scaleX / portraitCanvas.width;
 
     simulationX = x;
     isSimulating = true;
     lastTimestamp = null;
+    lastScreenX = null;    // Reset screen position tracker
+    lastCheckTime = null;  // Reset time tracker
     requestAnimationFrame(animate);
 });
 
@@ -565,6 +596,7 @@ document.getElementById('xmax').addEventListener('change', updateVisualization);
 document.getElementById('ymin').addEventListener('change', updateVisualization);
 document.getElementById('ymax').addEventListener('change', updateVisualization);
 document.getElementById('autozoom').addEventListener('click', autoZoom);
+document.getElementById('reset').addEventListener('click', resetWindow);
 
 updateVisualization(); // Initial draw
 </script>
