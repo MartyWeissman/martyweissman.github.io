@@ -12,17 +12,25 @@
       font-size: 24px;
       margin: 20px 0;
     }
+    .subtitle {
+      text-align: center;
+      font-size: 16px;
+      color: #666;
+      margin: -10px 0 20px 0;
+    }
     .grid-container {
-      display: grid;
-      grid-template-columns: 3fr 2fr;
-      gap: 20px;
-      margin-top: 20px;
+        display: grid;
+        grid-template-columns: 3fr 2fr;
+        gap: 20px;
+        margin-top: 20px;
+        align-items: start;  /* This helps with alignment */
     }
     .plot-container {
-      display: grid;
-      grid-template-columns: 20px auto;
-      grid-template-rows: auto 25px auto;
-      gap: 0;
+        display: grid;
+        grid-template-columns: 20px auto;
+        grid-template-rows: auto 25px auto;
+        gap: 0;
+        padding: 10px 0;  /* Add this line to match the right column padding */
     }
     .y-axis-label {
       grid-column: 1;
@@ -61,30 +69,71 @@
       grid-row: 3;
       border: 1px solid #ccc;
       background: white;
+      cursor: pointer;
     }
     .right-column {
-      padding: 20px;
-      background: #f5f5f5;
-      border-radius: 8px;
+        padding: 20px 20px 0 20px;  /* Removed bottom padding */
+        background: #f5f5f5;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        min-height: 100%;
+    }
+    .input-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 15px;
     }
     .input-row {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 5px;
       margin-bottom: 15px;
     }
     .input-row label {
-      min-width: 45px;
+      min-width: 60px;
     }
     .input-row input {
       padding: 8px;
       font-size: 16px;
-      width: 150px;
+      width: 100px;  /* Reduced from 150px */
+    }
+    .param-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 15px;
+    }
+    .param-row label {
+      min-width: 25px;
+    }
+    .param-row input {
+          padding: 8px;
+          font-size: 16px;
+          width: 80px;  /* Reduced from 100px */
     }
     .error {
       color: red;
       margin-top: 10px;
       font-size: 14px;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .bottom-plot {
+        width: 100%;
+        height: 120px;
+        border: 1px solid #ccc;
+        background: white;
+        margin: 20px 0;  /* Match the gap of grid-container */
+    }
+    .below-plot {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 10px;
     }
     button {
       padding: 8px 16px;
@@ -94,20 +143,28 @@
       border-radius: 4px;
       cursor: pointer;
       font-size: 14px;
+      transition: background-color 0.2s;
     }
     button:hover {
       background-color: #45a049;
     }
+    .example-button {
+      background-color: #2196F3;
+      margin: 5px;
+      font-size: 12px;
+    }
+    .example-button:hover {
+      background-color: #1976D2;
+    }
     canvas {
       display: block;
-      width: 100%;
-      height: 100%;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1 class="title">One-dimensional dynamical system visualizer</h1>
+    <h1 class="title">One-dimensional Dynamical System Visualizer</h1>
+    <div class="subtitle">Click on the phase line to simulate trajectories</div>
     <div class="grid-container">
       <div class="plot-container">
         <div class="y-axis-label">X'</div>
@@ -120,37 +177,59 @@
         <canvas id="portraitCanvas" class="portrait-plot" width="600" height="120"></canvas>
       </div>
       <div class="right-column">
-        <div class="input-row">
-          <label>X' = </label>
-          <input type="text" id="equation" value="2*X - X^2" placeholder="Enter function and press Enter">
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <div class="param-row">
+                <label>X' = </label>
+                <input type="text" id="equation" value="X*(k-X)" placeholder="Enter function and press Enter" style="width: 150px;">
+            </div>
+            <div class="param-row">
+                <label>k = </label>
+                <input type="number" id="param-k" value="1.0" step="0.1">
+            </div>
         </div>
-        <div class="input-row">
-          <label>Xmin = </label>
-          <input type="number" id="xmin" value="-5" step="0.5">
+        <div class="input-group">
+          <div class="input-row">
+            <label>Xmin = </label>
+            <input type="number" id="xmin" value="-5" step="0.5">
+          </div>
+          <div class="input-row">
+            <label>Xmax = </label>
+            <input type="number" id="xmax" value="5" step="0.5">
+          </div>
+          <div class="input-row">
+            <label>Ymin = </label>
+            <input type="number" id="ymin" value="-1" step="0.5">
+          </div>
+          <div class="input-row">
+            <label>Ymax = </label>
+            <input type="number" id="ymax" value="1" step="0.5">
+          </div>
         </div>
-        <div class="input-row">
-          <label>Xmax = </label>
-          <input type="number" id="xmax" value="5" step="0.5">
+        <div class="button-group">
+          <button id="autozoom">Autozoom</button>
+          <button id="reset">Reset window</button>
+          <button id="stopSim">Stop simulation</button>
         </div>
-        <div class="input-row">
-          <label>Ymin = </label>
-          <input type="number" id="ymin" value="-1" step="0.5">
+        <div class="examples">
+          <button class="example-button" data-eq="X*(k-X)">X*(k-X)</button>
+          <button class="example-button" data-eq="X*(1-X)*(X-0.3)">X*(1-X)*(X-0.3)</button>
+          <button class="example-button" data-eq="(X^2)/(1 + X^2) - k*X">(X²)/(1 + X²) - k*X</button>
         </div>
-        <div class="input-row">
-          <label>Ymax = </label>
-          <input type="number" id="ymax" value="1" step="0.5">
-        </div>
-        <button id="autozoom">Autozoom</button>
-        <button id="reset">Reset window</button>
         <div id="error" class="error"></div>
+        <canvas id="timeCanvas" class="bottom-plot"></canvas>
+        <div class="below-plot">
+            <button id="clearPlot">Clear time series</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <script>
+<script>
     function parseAndEvaluate(expr, x) {
+      const k = parseFloat(document.getElementById('param-k').value);
       expr = expr.replace(/\^/g, '**')
                  .replace(/X/g, `(${x})`)
+                 .replace(/k/g, `(${k})`)
                  .replace(/\b(?:sin|cos|tan|exp|log)\b/g, 'Math.$&');
       try {
         return Function('return ' + expr)();
@@ -163,7 +242,6 @@
         const points = [];
         const steps = 1000;
         const dx = (xMax - xMin) / steps;
-
         let lastY = parseAndEvaluate(expr, xMin);
 
         for (let i = 1; i <= steps; i++) {
@@ -186,7 +264,6 @@
                 }
                 const newPoint = (left + right) / 2;
 
-                // Only add if it's not very close to an existing point
                 const tolerance = dx/100;
                 const isDuplicate = points.some(p => Math.abs(p - newPoint) < tolerance);
                 if (!isDuplicate) {
@@ -228,30 +305,52 @@
     }
 
     function transformY(y, canvas) {
-      return canvas.height - (y - yMin) * canvas.height / (yMax - yMin);
+        if (canvas === timeCanvas) {
+            return canvas.height - (y - xMin) * canvas.height / (xMax - xMin);
+        }
+        return canvas.height - (y - yMin) * canvas.height / (yMax - yMin);
     }
 
     function drawPhaseAxes() {
       phaseCtx.clearRect(0, 0, phaseCanvas.width, phaseCanvas.height);
 
-      // Draw grid lines at equilibrium points
+      // Draw grid lines
       phaseCtx.beginPath();
       phaseCtx.strokeStyle = '#eee';
+      for(let x = Math.ceil(xMin); x <= Math.floor(xMax); x++) {
+        const screenX = transformX(x);
+        phaseCtx.moveTo(screenX, 0);
+        phaseCtx.lineTo(screenX, phaseCanvas.height);
+      }
+      for(let y = Math.ceil(yMin); y <= Math.floor(yMax); y++) {
+        const screenY = transformY(y, phaseCanvas);
+        phaseCtx.moveTo(0, screenY);
+        phaseCtx.lineTo(phaseCanvas.width, screenY);
+      }
+      phaseCtx.stroke();
+
+      // Draw axes
+      phaseCtx.beginPath();
+      phaseCtx.strokeStyle = '#999';
+      phaseCtx.moveTo(0, transformY(0, phaseCanvas));
+      phaseCtx.lineTo(phaseCanvas.width, transformY(0, phaseCanvas));
+      phaseCtx.moveTo(transformX(0), 0);
+      phaseCtx.lineTo(transformX(0), phaseCanvas.height);
+      phaseCtx.stroke();
+
+      // Draw equilibrium points vertical lines
+      phaseCtx.beginPath();
+      phaseCtx.strokeStyle = '#ccc';
+      phaseCtx.setLineDash([5, 5]);
       equilibriumPoints.forEach(x => {
         const screenX = transformX(x);
         phaseCtx.moveTo(screenX, 0);
         phaseCtx.lineTo(screenX, phaseCanvas.height);
       });
       phaseCtx.stroke();
+      phaseCtx.setLineDash([]);
 
-      // Draw horizontal axis only
-      phaseCtx.beginPath();
-      phaseCtx.strokeStyle = '#999';
-      phaseCtx.moveTo(0, transformY(0, phaseCanvas));
-      phaseCtx.lineTo(phaseCanvas.width, transformY(0, phaseCanvas));
-      phaseCtx.stroke();
-
-      // Draw equilibrium point labels (top)
+      // Draw equilibrium point labels
       phaseCtx.font = '12px Arial';
       phaseCtx.fillStyle = '#666';
       phaseCtx.textAlign = 'center';
@@ -263,6 +362,7 @@
     function drawPhaseCurve(expr) {
       phaseCtx.beginPath();
       phaseCtx.strokeStyle = 'blue';
+      phaseCtx.lineWidth = 2;
 
       let isFirst = true;
       let lastY = null;
@@ -284,31 +384,30 @@
         lastY = y;
       }
       phaseCtx.stroke();
+      phaseCtx.lineWidth = 1;
     }
 
     function drawHorizontalArrow(ctx, tailX, headX, yOffset) {
-        const arrowHeadLength = 10;  // Length of arrowhead
-        const arrowHeadWidth = 4;    // Max width of arrowhead
-        const barbDepth = 2;         // How far the barb curves inward
+        const arrowHeadLength = 10;
+        const arrowHeadWidth = 4;
+        const barbDepth = 2;
         const y = portraitCanvas.height/3 + yOffset;
 
-        // Draw main line
         ctx.beginPath();
         ctx.moveTo(tailX, y);
         ctx.lineTo(headX, y);
         ctx.stroke();
 
-        // Draw arrowhead
         ctx.beginPath();
-        if (headX > tailX) {  // Right-pointing arrow
+        if (headX > tailX) {
             ctx.moveTo(headX, y);
             ctx.lineTo(headX - arrowHeadLength, y - arrowHeadWidth);
-            ctx.lineTo(headX - arrowHeadLength + barbDepth, y);  // Barb curve
+            ctx.lineTo(headX - arrowHeadLength + barbDepth, y);
             ctx.lineTo(headX - arrowHeadLength, y + arrowHeadWidth);
-        } else {  // Left-pointing arrow
+        } else {
             ctx.moveTo(headX, y);
             ctx.lineTo(headX + arrowHeadLength, y - arrowHeadWidth);
-            ctx.lineTo(headX + arrowHeadLength - barbDepth, y);  // Barb curve
+            ctx.lineTo(headX + arrowHeadLength - barbDepth, y);
             ctx.lineTo(headX + arrowHeadLength, y + arrowHeadWidth);
         }
         ctx.closePath();
@@ -317,10 +416,7 @@
     }
 
     function getIntervals() {
-        // Create array [Xmin, E1, E2, ..., En, Xmax]
         const points = [xMin, ...equilibriumPoints, xMax].sort((a, b) => a - b);
-
-        // Create intervals
         const intervals = [];
         for (let i = 0; i < points.length - 1; i++) {
             intervals.push({
@@ -337,17 +433,14 @@
         const relativeLength = interval.length / totalRange;
         const arrowLength = Math.min(30, interval.length * portraitCanvas.width / totalRange / 3);
 
-        // Determine number of arrows based on interval length
         let numArrows;
         if (relativeLength < 0.2) numArrows = 1;
         else if (relativeLength < 0.5) numArrows = 2;
         else numArrows = 3;
 
-        // Calculate spacing for arrows
         const spacePerArrow = interval.length / (numArrows + 1);
         const direction = parseAndEvaluate(equationInput.value, (interval.start + interval.end) / 2) > 0;
 
-        // Draw arrows
         for (let i = 1; i <= numArrows; i++) {
             const centerX = interval.start + i * spacePerArrow;
             const screenCenterX = transformX(centerX);
@@ -362,6 +455,7 @@
     }
 
     function drawPhasePortrait() {
+        const dpr = window.devicePixelRatio || 1;
         portraitCtx.clearRect(0, 0, portraitCanvas.width, portraitCanvas.height);
 
         // Draw horizontal line
@@ -374,10 +468,15 @@
         // Draw equilibrium points
         equilibriumPoints.forEach(x => {
             const screenX = transformX(x);
+            const centerY = portraitCanvas.height/3;
+
+            // Draw perfect circle by scaling context
+            portraitCtx.save();
+            portraitCtx.scale(1, 1);  // Use 1:1 scale for circular dots
 
             // Draw dot
             portraitCtx.beginPath();
-            portraitCtx.arc(screenX, portraitCanvas.height/3, 6, 0, 2*Math.PI);
+            portraitCtx.arc(screenX, centerY, 6, 0, 2*Math.PI);
             portraitCtx.strokeStyle = 'black';
 
             // Check stability
@@ -390,10 +489,12 @@
             portraitCtx.fill();
             portraitCtx.stroke();
 
+            portraitCtx.restore();
+
             // Draw number label above dot
             portraitCtx.fillStyle = 'black';
             portraitCtx.textAlign = 'center';
-            portraitCtx.fillText(x.toFixed(2), screenX, portraitCanvas.height/3 - 15);
+            portraitCtx.fillText(x.toFixed(2), screenX, centerY - 15);
         });
 
         // Draw arrows for each interval
@@ -402,45 +503,42 @@
     }
 
     function autoZoom() {
-      const expr = document.getElementById('equation').value;
+        const expr = document.getElementById('equation').value;
 
-      if (equilibriumPoints.length === 0) return;
+        if (equilibriumPoints.length === 0) return;
 
-      if (equilibriumPoints.length === 1) {
-        const E = equilibriumPoints[0];
-        xMin = E - 1;
-        xMax = E + 1;
-      } else {
-        const Emin = Math.min(...equilibriumPoints);
-        const Emax = Math.max(...equilibriumPoints);
-        const Erange = Emax - Emin;
-        xMin = Emin - (Erange / 5);
-        xMax = Emax + (Erange / 5);
-      }
+        if (equilibriumPoints.length === 1) {
+            const E = equilibriumPoints[0];
+            xMin = E - 1;
+            xMax = E + 1;
+        } else {
+            const Emin = Math.min(...equilibriumPoints);
+            const Emax = Math.max(...equilibriumPoints);
+            const Erange = Emax - Emin;
+            xMin = Emin - (Erange / 5);
+            xMax = Emax + (Erange / 5);
+        }
 
-      // Update X range inputs
-      document.getElementById('xmin').value = xMin;
-      document.getElementById('xmax').value = xMax;
+        document.getElementById('xmin').value = xMin.toFixed(5);
+        document.getElementById('xmax').value = xMax.toFixed(5);
 
-      // Find Y range
-      const [newYmin, newYmax] = findYRange(expr, xMin, xMax);
-      const yPadding = (newYmax - newYmin) * 0.1;
-      yMin = newYmin - yPadding;
-      yMax = newYmax + yPadding;
+        const [newYmin, newYmax] = findYRange(expr, xMin, xMax);
+        const yPadding = (newYmax - newYmin) * 0.1;
+        yMin = newYmin - yPadding;
+        yMax = newYmax + yPadding;
 
-      // Update Y range inputs
-      document.getElementById('ymin').value = yMin;
-      document.getElementById('ymax').value = yMax;
+        document.getElementById('ymin').value = yMin.toFixed(5);
+        document.getElementById('ymax').value = yMax.toFixed(5);
 
-      updateVisualization();
+        updateVisualization();
     }
 
-    // In the JavaScript, add:
     function resetWindow() {
-        document.getElementById('xmin').value = -5;
-        document.getElementById('xmax').value = 5;
-        document.getElementById('ymin').value = -1;
-        document.getElementById('ymax').value = 1;
+        document.getElementById('xmin').value = (-5).toFixed(5);
+        document.getElementById('xmax').value = (5).toFixed(5);
+        document.getElementById('ymin').value = (-1).toFixed(5);
+        document.getElementById('ymax').value = (1).toFixed(5);
+        document.getElementById('param-k').value = (1.0).toFixed(1);
         updateVisualization();
     }
 
@@ -448,157 +546,246 @@
     let xMax = 5;
     let yMin = -1;
     let yMax = 1;
+    let startTime = 0;
     let equilibriumPoints = [];
+    let hoverX = null;
+    let simulationX = null;
+    let isSimulating = false;
+    let lastTimestamp = null;
+    let animationFrameId = null;
+    const ballRadius = 6;
 
-    // Update X-axis labels
     function updateAxisLabels() {
-      document.getElementById('xmin-label').textContent = xMin.toFixed(1);
-      document.getElementById('xmax-label').textContent = xMax.toFixed(1);
+        document.getElementById('xmin-label').textContent = xMin.toFixed(2);
+        document.getElementById('xmax-label').textContent = xMax.toFixed(2);
     }
 
-    // Mouse interaction and simulation variables
-let hoverX = null;
-let simulationX = null;
-let isSimulating = false;
-let lastTimestamp = null;
-const ballRadius = 6;
-
-// RK4 implementation for X' = F(X)
-function rk4Step(x, dt) {
-    const k1 = parseAndEvaluate(equationInput.value, x);
-    const k2 = parseAndEvaluate(equationInput.value, x + k1 * dt/2);
-    const k3 = parseAndEvaluate(equationInput.value, x + k2 * dt/2);
-    const k4 = parseAndEvaluate(equationInput.value, x + k3 * dt);
-    return x + (dt/6) * (k1 + 2*k2 + 2*k3 + k4);
-}
-
-function drawBall(ctx, x, opacity) {
-    const screenX = transformX(x);
-    const y = portraitCanvas.height/3;
-
-    ctx.beginPath();
-    ctx.arc(screenX, y, ballRadius, 0, 2*Math.PI);
-    ctx.fillStyle = `rgba(0, 255, 0, ${opacity})`;
-    ctx.fill();
-    ctx.strokeStyle = 'black';
-    ctx.stroke();
-}
-let lastScreenX = null;
-let lastCheckTime = null;
-
-function animate(timestamp) {
-    if (!lastTimestamp) {
-        lastTimestamp = timestamp;
-        lastCheckTime = timestamp;
-        lastScreenX = transformX(simulationX);
+    function rk4Step(x, dt) {
+        const k1 = parseAndEvaluate(equationInput.value, x);
+        const k2 = parseAndEvaluate(equationInput.value, x + k1 * dt/2);
+        const k3 = parseAndEvaluate(equationInput.value, x + k2 * dt/2);
+        const k4 = parseAndEvaluate(equationInput.value, x + k3 * dt);
+        return x + (dt/6) * (k1 + 2*k2 + 2*k3 + k4);
     }
-    const dt = (timestamp - lastTimestamp) / 1000;
-    lastTimestamp = timestamp;
 
-    if (isSimulating && simulationX !== null) {
-        // Update position
-        simulationX = rk4Step(simulationX, dt);
+    function drawBall(ctx, x, opacity) {
+        const screenX = transformX(x);
+        const y = portraitCanvas.height/3;
 
-        // Check for minimal movement every 0.1 seconds
-        if (timestamp - lastCheckTime > 100) {  // 100ms = 0.1s
-            const newScreenX = transformX(simulationX);
-            const screenMovement = Math.abs(newScreenX - lastScreenX);
-            if (screenMovement < 0.5) {
-                isSimulating = false;
-                return;
-            }
-            lastScreenX = newScreenX;
-            lastCheckTime = timestamp;
+        ctx.save();
+        ctx.scale(1, 1);  // Use 1:1 scale for circular ball
+
+        ctx.beginPath();
+        ctx.arc(screenX, y, ballRadius, 0, 2*Math.PI);
+        ctx.fillStyle = `rgba(0, 255, 0, ${opacity})`;
+        ctx.fill();
+        ctx.strokeStyle = 'black';
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    function stopSimulation() {
+        if (timeSeriesData.length > 0) {
+            timeSeriesData[timeSeriesData.length - 1].active = false;
         }
-
-        // Check for out of bounds
-        const margin = 0.05 * (xMax - xMin);
-        if (simulationX < xMin - margin || simulationX > xMax + margin) {
-            isSimulating = false;
-            return;
-        }
-
-        // Redraw phase portrait with current ball position
-        drawPhasePortrait();
-        drawBall(portraitCtx, simulationX, 1.0);
-
-        // Continue animation
-        requestAnimationFrame(animate);
-    }
-}
-
-// Mouse event listeners with proper offset calculation
-portraitCanvas.addEventListener('mousemove', (e) => {
-    const rect = portraitCanvas.getBoundingClientRect();
-    const scaleX = portraitCanvas.width / rect.width;  // Account for any scaling
-    const x = xMin + (xMax - xMin) * (e.clientX - rect.left) * scaleX / portraitCanvas.width;
-
-    if (!isSimulating) {
-        hoverX = x;
-        drawPhasePortrait();
-        drawBall(portraitCtx, x, 0.5);
-    }
-});
-
-portraitCanvas.addEventListener('mouseleave', () => {
-    if (!isSimulating) {
-        hoverX = null;
-        drawPhasePortrait();
-    }
-});
-
-// Reset these when starting new simulation
-portraitCanvas.addEventListener('click', (e) => {
-    const rect = portraitCanvas.getBoundingClientRect();
-    const scaleX = portraitCanvas.width / rect.width;
-    const x = xMin + (xMax - xMin) * (e.clientX - rect.left) * scaleX / portraitCanvas.width;
-
-    simulationX = x;
-    isSimulating = true;
-    lastTimestamp = null;
-    lastScreenX = null;    // Reset screen position tracker
-    lastCheckTime = null;  // Reset time tracker
-    requestAnimationFrame(animate);
-});
-
-function updateVisualization() {
-    document.getElementById('error').textContent = '';
-    const expr = equationInput.value;
-    xMin = parseFloat(document.getElementById('xmin').value);
-    xMax = parseFloat(document.getElementById('xmax').value);
-    yMin = parseFloat(document.getElementById('ymin').value);
-    yMax = parseFloat(document.getElementById('ymax').value);
-
-    try {
-        // Stop any ongoing simulation when visualization updates
         isSimulating = false;
         simulationX = null;
-        hoverX = null;
-
-        equilibriumPoints = findEquilibriumPoints(expr, xMin, xMax);
-        drawPhaseAxes();
-        drawPhaseCurve(expr);
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
         drawPhasePortrait();
-    } catch (e) {
-        document.getElementById('error').textContent = e.message;
     }
-}
 
-// Event listeners
-document.getElementById('equation').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        updateVisualization();
+    function animate(timestamp) {
+        if (!lastTimestamp) {
+            lastTimestamp = timestamp;
+        }
+        const dt = (timestamp - lastTimestamp) / 1000; // Convert to seconds
+        lastTimestamp = timestamp;
+
+        if (isSimulating && simulationX !== null) {
+            const t = (timestamp - startTime) / 1000; // Track absolute time
+            simulationX = rk4Step(simulationX, dt);
+
+            const margin = 0.05 * (xMax - xMin);
+            if (simulationX < xMin - margin || simulationX > xMax + margin) {
+                stopSimulation();
+                return;
+            }
+
+            const isNearEquilibrium = equilibriumPoints.some(eq =>
+                Math.abs(simulationX - eq) < 0.001);
+            if (isNearEquilibrium) {
+                stopSimulation();
+                return;
+            }
+
+            drawPhasePortrait();
+            drawBall(portraitCtx, simulationX, 1.0);
+            updateTimeSeries(t, simulationX);
+
+            animationFrameId = requestAnimationFrame(animate);
+        }
     }
-});
 
-document.getElementById('xmin').addEventListener('change', updateVisualization);
-document.getElementById('xmax').addEventListener('change', updateVisualization);
-document.getElementById('ymin').addEventListener('change', updateVisualization);
-document.getElementById('ymax').addEventListener('change', updateVisualization);
-document.getElementById('autozoom').addEventListener('click', autoZoom);
-document.getElementById('reset').addEventListener('click', resetWindow);
+    portraitCanvas.addEventListener('mousemove', (e) => {
+        const rect = portraitCanvas.getBoundingClientRect();
+        const scaleX = portraitCanvas.width / rect.width;
+        const x = xMin + (xMax - xMin) * (e.clientX - rect.left) * scaleX / portraitCanvas.width;
 
-updateVisualization(); // Initial draw
+        if (!isSimulating) {
+            hoverX = x;
+            drawPhasePortrait();
+            drawBall(portraitCtx, x, 0.5);
+        }
+    });
+
+    portraitCanvas.addEventListener('mouseleave', () => {
+        if (!isSimulating) {
+            hoverX = null;
+            drawPhasePortrait();
+        }
+    });
+
+    portraitCanvas.addEventListener('click', (e) => {
+        const rect = portraitCanvas.getBoundingClientRect();
+        const scaleX = portraitCanvas.width / rect.width;
+        const x = xMin + (xMax - xMin) * (e.clientX - rect.left) * scaleX / portraitCanvas.width;
+
+        stopSimulation(); // Stop any existing simulation
+
+        // Start new trajectory
+        timeSeriesData.push({
+            points: [{t: 0, x: x}],
+            active: true
+        });
+
+        simulationX = x;
+        isSimulating = true;
+        lastTimestamp = null;
+        startTime = performance.now();
+        animationFrameId = requestAnimationFrame(animate);
+    });
+
+    const timeCanvas = document.getElementById('timeCanvas');
+    const timeCtx = timeCanvas.getContext('2d');
+    const timeWindow = 10; // Fixed 10 second window
+    let timeSeriesData = []; // Array to store multiple trajectories
+    const activeColor = 'rgb(0, 128, 0)';  // Dark green
+    const inactiveColor = 'rgb(128, 128, 128)';  // Gray
+
+
+    function drawTimeSeries() {
+        timeCtx.clearRect(0, 0, timeCanvas.width, timeCanvas.height);
+
+        // Draw grid
+        timeCtx.beginPath();
+        timeCtx.strokeStyle = '#eee';
+        for(let x = 0; x < timeCanvas.width; x += timeCanvas.width/10) {
+            timeCtx.moveTo(x, 0);
+            timeCtx.lineTo(x, timeCanvas.height);
+        }
+        for(let y = 0; y < timeCanvas.height; y += timeCanvas.height/5) {
+            timeCtx.moveTo(0, y);
+            timeCtx.lineTo(timeCanvas.width, y);
+        }
+        timeCtx.stroke();
+
+        // Draw axes
+        timeCtx.beginPath();
+        timeCtx.strokeStyle = '#999';
+        timeCtx.moveTo(0, transformY(0, timeCanvas));
+        timeCtx.lineTo(timeCanvas.width, transformY(0, timeCanvas));
+        timeCtx.stroke();
+
+        // Draw each trajectory
+        timeSeriesData.forEach((traj, index) => {
+            if (traj.points.length < 2) return;
+
+            const isActive = index === timeSeriesData.length - 1 && traj.active;
+            timeCtx.beginPath();
+            timeCtx.strokeStyle = isActive ? activeColor : inactiveColor;
+            timeCtx.lineWidth = isActive ? 2 : 1;
+
+            traj.points.forEach((point, i) => {
+                const x = (point.t * timeCanvas.width) / timeWindow;
+                const y = transformY(point.x, timeCanvas);
+
+                if (i === 0) {
+                    timeCtx.moveTo(x, y);
+                } else {
+                    timeCtx.lineTo(x, y);
+                }
+            });
+            timeCtx.stroke();
+        });
+    }
+
+    function updateTimeSeries(t, x) {
+        const currentTraj = timeSeriesData[timeSeriesData.length - 1];
+
+        // Add new point
+        currentTraj.points.push({t: t, x: x});
+
+        // Stop if we reach the time window
+        if (t >= timeWindow) {
+            stopSimulation();
+        }
+
+        drawTimeSeries();
+    }
+
+    function updateVisualization() {
+        document.getElementById('error').textContent = '';
+        const expr = equationInput.value;
+        xMin = parseFloat(document.getElementById('xmin').value);
+        xMax = parseFloat(document.getElementById('xmax').value);
+        yMin = parseFloat(document.getElementById('ymin').value);
+        yMax = parseFloat(document.getElementById('ymax').value);
+
+        try {
+            stopSimulation();
+            equilibriumPoints = findEquilibriumPoints(expr, xMin, xMax);
+            updateAxisLabels();
+            drawPhaseAxes();
+            drawPhaseCurve(expr);
+            drawPhasePortrait();
+            drawTimeSeries();  // Add it here
+        } catch (e) {
+            document.getElementById('error').textContent = e.message;
+        }
+    }
+
+    // Event listeners
+    document.getElementById('equation').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            updateVisualization();
+        }
+    });
+
+    document.getElementById('param-k').addEventListener('change', updateVisualization);
+    document.getElementById('xmin').addEventListener('change', updateVisualization);
+    document.getElementById('xmax').addEventListener('change', updateVisualization);
+    document.getElementById('ymin').addEventListener('change', updateVisualization);
+    document.getElementById('ymax').addEventListener('change', updateVisualization);
+    document.getElementById('autozoom').addEventListener('click', autoZoom);
+    document.getElementById('reset').addEventListener('click', resetWindow);
+    document.getElementById('stopSim').addEventListener('click', stopSimulation);
+    document.getElementById('clearPlot').addEventListener('click', () => {
+        timeSeriesData = [];
+        drawTimeSeries();
+    });
+    // Example buttons
+    document.querySelectorAll('.example-button').forEach(button => {
+        button.addEventListener('click', () => {
+            equationInput.value = button.dataset.eq;
+            updateVisualization();
+        });
+    });
+
+    updateVisualization(); // Initial draw
 </script>
 </body>
 </html>
