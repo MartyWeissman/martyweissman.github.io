@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Holling-Tanner Predator-Prey Simulator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/1.5.10/pico.min.css">
+    <style>
+        :root {
+            --spacing: 0.5rem;
+            --typography-spacing-vertical: 1rem;
+        }
+
+        .container {
+            max-width: 900px;
+            padding: 0 1rem;
+        }
+
+        article header {
+            padding-bottom: 0;
+            margin-bottom: 0.5rem;
+        }
+
+        h1 {
+            margin-bottom: 0.25rem;
+            font-size: 1.5rem;
+        }
+
+        .click-instruction {
+            margin: 0 0 1rem 0;
+            font-size: 0.9rem;
+            color: var(--muted-color);
+        }
+
+        canvas {
+            border: 1px solid var(--muted-border-color);
+            background-color: white;
+            display: block;
+            margin-bottom: 1rem;
+            width: 500px;
+            height: auto;
+        }
+
+        .equations {
+            text-align: center;
+            font-size: 1.1em;
+            margin-bottom: 1rem;
+            font-family: "Times New Roman", Times, serif;
+        }
+
+        .equations p {
+            margin: 0.25rem 0;
+        }
+
+        .canvas-container {
+            width: 500px;
+        }
+
+        .grid {
+            --grid-spacing-horizontal: 1rem;
+            --grid-spacing-vertical: 0.5rem;
+            margin-bottom: 0;
+        }
+
+        label {
+            margin-bottom: 0.25rem;
+        }
+
+        input {
+            margin-bottom: 0.5rem;
+        }
+
+        #controls {
+            padding: 0;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 1rem;
+            align-items: start;
+        }
+
+        .simulation-info {
+            font-family: 'Courier New', monospace;
+            text-align: right;
+            margin: 0.5rem 0;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <article>
+            <header>
+                <h1>Holling-Tanner Predator-Prey Simulator</h1>
+                <p class="click-instruction">Click on phase space to start a trajectory.</p>
+            </header>
+
+            <div class="main-grid">
+                <div class="canvas-container">
+                    <canvas id="vectorField" width="500" height="500"></canvas>
+                    <canvas id="populationGraph" width="500" height="200"></canvas>
+                </div>
+
+                <div>
+                    <div class="equations" style="font-size: 1.2em;">
+                        <p>dS/dt = αS(1 - S/qT)</p>
+                        <p>dT/dt = βT(1 - T/m) - cST/(h+T)</p>
+                    </div>
+
+                    <form id="controls">
+                        <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                            <div style="display: flex; gap: 1rem;">
+                                <label style="display: flex; align-items: baseline; gap: 0.5rem; font-size: 1.2em;">
+                                    α:
+                                    <input type="number" id="alpha" value="0.1" step="0.01" style="width: 4em; height: 1.5rem; text-align: left; padding: 0 0.3rem;">
+                                </label>
+                                <label style="display: flex; align-items: baseline; gap: 0.5rem; font-size: 1.2em;">
+                                    β:
+                                    <input type="number" id="beta" value="1.0" step="0.1" style="width: 4em; height: 1.5rem; text-align: left; padding: 0 0.3rem;">
+                                </label>
+                            </div>
+                            <div style="display: flex; gap: 1rem;">
+                                <label style="display: flex; align-items: baseline; gap: 0.5rem; font-size: 1.2em;">
+                                    c:
+                                    <input type="number" id="c" value="0.5" step="0.1" style="width: 4em; height: 1.5rem; text-align: left; padding: 0 0.3rem;">
+                                </label>
+                                <label style="display: flex; align-items: baseline; gap: 0.5rem; font-size: 1.2em;">
+                                    h:
+                                    <input type="number" id="h" value="1.0" step="0.1" style="width: 4em; height: 1.5rem; text-align: left; padding: 0 0.3rem;">
+                                </label>
+                            </div>
+                            <div style="display: flex; gap: 1rem;">
+                                <label style="display: flex; align-items: baseline; gap: 0.5rem; font-size: 1.2em;">
+                                    m:
+                                    <input type="number" id="m" value="7.0" step="0.1" style="width: 4em; height: 1.5rem; text-align: left; padding: 0 0.3rem;">
+                                </label>
+                                <label style="display: flex; align-items: baseline; gap: 0.5rem; font-size: 1.2em;">
+                                    q:
+                                    <input type="number" id="q" value="1.0" step="0.1" style="width: 4em; height: 1.5rem; text-align: left; padding: 0 0.3rem;">
+                                </label>
+                            </div>
+                        </div>
+
+                        <label>
+                            Simulation Speed:
+                            <input type="range" id="speed" min="0" max="19" value="10">
+                        </label>
+
+                        <button type="button" onclick="resetSimulation()" style="width: 100%; margin: 0.5rem 0;">Reset Simulation</button>
+
+                        <div class="button-group" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <button type="button" id="etchTrajectory" style="background-color: darkgreen; flex: 1;">Etch Trajectory</button>
+                            <button type="button" id="showNullclines" style="background-color: purple; flex: 1;">Show Nullclines</button>
+                        </div>
+
+                        <div class="simulation-info">
+                            <div id="timeDisplay">Time: 0.0 sec</div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </article>
+    </main>
+    <script>
+        const vectorField = document.getElementById('vectorField');
+        const populationGraph = document.getElementById('populationGraph');
+        const vfCtx = vectorField.getContext('2d');
+        const pgCtx = populationGraph.getContext('2d');
+        const GRID_SIZE = 15;
+        const AXIS_COLOR = 'rgb(150, 173, 233)';
+        const ETCH_COLOR = 'rgba(0, 100, 0, 0.7)';  // dark green with some transparency
+        const Smax = 6.0;  // maximum value for S axis
+        const Tmax = 6.0;  // maximum value for T axis
+
+        let alpha, beta, c, h, m, q;
+        let particle = null;
+        let time = 0;
+        let trajectoryData = [];
+        let animationId = null;
+        let speed = 10;
+        let showingNullclines = false;
+        let etchedTrajectories = [];  // Array to store up to 5 etched trajectories
+        let isEtching = false;  // New variable to track etching state
+
+        const drawingArea = {
+            x: 50,
+            y: 50,
+            width: vectorField.width - 100,
+            height: vectorField.height - 100
+        };
+        function resetSimulation() {
+            document.getElementById('speed').value = "10";
+            alpha = parseFloat(document.getElementById('alpha').value);
+            beta = parseFloat(document.getElementById('beta').value);
+            c = parseFloat(document.getElementById('c').value);
+            h = parseFloat(document.getElementById('h').value);
+            m = parseFloat(document.getElementById('m').value);
+            q = parseFloat(document.getElementById('q').value);
+            speed = parseInt(document.getElementById('speed').value);
+
+            particle = null;
+            time = 0;
+            trajectoryData = [];
+
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            drawVectorField();
+            drawTrajectoryGraph();
+        }
+
+        function drawVectorField() {
+            vfCtx.clearRect(0, 0, vectorField.width, vectorField.height);
+
+            // Draw axes
+            vfCtx.strokeStyle = AXIS_COLOR;
+            vfCtx.lineWidth = 1;
+
+            // S-axis (bottom)
+            vfCtx.beginPath();
+            vfCtx.moveTo(drawingArea.x, drawingArea.y + drawingArea.height);
+            vfCtx.lineTo(drawingArea.x + drawingArea.width, drawingArea.y + drawingArea.height);
+            vfCtx.stroke();
+
+            // T-axis (left)
+            vfCtx.beginPath();
+            vfCtx.moveTo(drawingArea.x, drawingArea.y);
+            vfCtx.lineTo(drawingArea.x, drawingArea.y + drawingArea.height);
+            vfCtx.stroke();
+
+            // Add tick marks and labels
+            vfCtx.strokeStyle = AXIS_COLOR;
+            vfCtx.textAlign = 'center';
+            vfCtx.textBaseline = 'middle';
+            for (let i = 0; i <= 6; i++) {
+                const value = i;
+
+                // S-axis ticks and labels
+                const sPos = drawingArea.x + (value/Smax) * drawingArea.width;
+                vfCtx.beginPath();
+                vfCtx.moveTo(sPos, drawingArea.y + drawingArea.height);
+                vfCtx.lineTo(sPos, drawingArea.y + drawingArea.height + 5);
+                vfCtx.stroke();
+                vfCtx.fillStyle = AXIS_COLOR;
+                vfCtx.fillText(value.toFixed(1), sPos, drawingArea.y + drawingArea.height + 20);
+
+                // T-axis ticks and labels
+                const tPos = drawingArea.y + drawingArea.height - (value/Tmax) * drawingArea.height;
+                vfCtx.beginPath();
+                vfCtx.moveTo(drawingArea.x - 5, tPos);
+                vfCtx.lineTo(drawingArea.x, tPos);
+                vfCtx.stroke();
+                vfCtx.fillStyle = AXIS_COLOR;
+                vfCtx.fillText(value.toFixed(1), drawingArea.x - 20, tPos);
+            }
+
+            // Label axes
+            vfCtx.font = '14px Arial';
+            vfCtx.fillStyle = 'blue';
+            vfCtx.fillText('S', drawingArea.x + drawingArea.width + 15, drawingArea.y + drawingArea.height);
+            vfCtx.fillStyle = 'red';
+            vfCtx.fillText('T', drawingArea.x, drawingArea.y - 15);
+
+            // Draw etched trajectories
+            etchedTrajectories.forEach(trajectory => {
+                vfCtx.strokeStyle = ETCH_COLOR;
+                vfCtx.lineWidth = 2;
+                vfCtx.beginPath();
+                trajectory.forEach((point, index) => {
+                    const canvasX = drawingArea.x + (point.s / Smax) * drawingArea.width;
+                    const canvasT = drawingArea.y + ((Tmax - point.t) / Tmax) * drawingArea.height;
+                    if (index === 0) {
+                        vfCtx.moveTo(canvasX, canvasT);
+                    } else {
+                        vfCtx.lineTo(canvasX, canvasT);
+                    }
+                });
+                vfCtx.stroke();
+            });
+
+            const arrowSize = 10;
+            vfCtx.strokeStyle = 'rgba(150, 150, 150, 0.6)';
+            vfCtx.fillStyle = 'rgba(150, 150, 150, 0.6)';
+
+            for (let i = 0; i <= GRID_SIZE; i++) {
+                for (let j = 0; j <= GRID_SIZE; j++) {
+                    const s = (i / GRID_SIZE) * Smax;
+                    const t = Tmax - (j / GRID_SIZE) * Tmax;
+
+                    // Skip if t is too close to zero to avoid division problems
+                    if (t < 0.01) continue;
+
+                    const ds = alpha * s * (1 - s/(q*t));
+                    const dt = beta * t * (1 - t/m) - c*s*t/(h + t);
+
+                    const magnitude = Math.sqrt(ds * ds + dt * dt);
+                    if (magnitude === 0) continue;
+
+                    const normalizedDs = ds / magnitude;
+                    const normalizedDt = dt / magnitude;
+
+                    const canvasX = drawingArea.x + (s / Smax) * drawingArea.width;
+                    const canvasT = drawingArea.y + ((Tmax - t) / Tmax) * drawingArea.height;
+
+                    vfCtx.beginPath();
+                    vfCtx.moveTo(canvasX, canvasT);
+                    vfCtx.lineTo(canvasX + normalizedDs * arrowSize, canvasT - normalizedDt * arrowSize);
+                    vfCtx.stroke();
+
+                    const angle = Math.atan2(-normalizedDt, normalizedDs);
+                    vfCtx.beginPath();
+                    vfCtx.moveTo(canvasX + normalizedDs * arrowSize, canvasT - normalizedDt * arrowSize);
+                    vfCtx.lineTo(canvasX + normalizedDs * arrowSize - Math.cos(angle - Math.PI/6) * arrowSize/3,
+                               canvasT - normalizedDt * arrowSize + Math.sin(angle - Math.PI/6) * arrowSize/3);
+                    vfCtx.lineTo(canvasX + normalizedDs * arrowSize - Math.cos(angle + Math.PI/6) * arrowSize/3,
+                               canvasT - normalizedDt * arrowSize + Math.sin(angle + Math.PI/6) * arrowSize/3);
+                    vfCtx.closePath();
+                    vfCtx.fill();
+                }
+            }
+            if (showingNullclines) {
+                // Draw nullclines
+                vfCtx.lineWidth = 1;
+
+                // T-nullcline (where dT/dt = 0)
+                vfCtx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+                let lastInBounds = false;
+                vfCtx.beginPath();
+
+                for(let i = 0; i <= 100; i++) {
+                    const t = (i/100) * Tmax;
+                    if(t < 0.01) continue;
+                    const s = (beta * (1 - t/m) * (h + t))/c;
+                    const inBounds = (s <= Smax && s >= 0);
+
+                    if(inBounds) {
+                        const canvasX = drawingArea.x + (s/Smax) * drawingArea.width;
+                        const canvasY = drawingArea.y + ((Tmax - t)/Tmax) * drawingArea.height;
+
+                        if(!lastInBounds) {
+                            vfCtx.beginPath();
+                            vfCtx.moveTo(canvasX, canvasY);
+                        } else {
+                            vfCtx.lineTo(canvasX, canvasY);
+                            vfCtx.stroke();
+                            vfCtx.beginPath();
+                            vfCtx.moveTo(canvasX, canvasY);
+                        }
+                    }
+                    lastInBounds = inBounds;
+                }
+
+                // S-nullcline (where dS/dt = 0)
+                vfCtx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+                lastInBounds = false;
+                vfCtx.beginPath();
+
+                for(let i = 0; i <= 100; i++) {
+                    const t = (i/100) * Tmax;
+                    if(t < 0.01) continue;
+                    const s = q*t;
+                    const inBounds = (s <= Smax);
+
+                    if(inBounds) {
+                        const canvasX = drawingArea.x + (s/Smax) * drawingArea.width;
+                        const canvasY = drawingArea.y + ((Tmax - t)/Tmax) * drawingArea.height;
+
+                        if(!lastInBounds) {
+                            vfCtx.beginPath();
+                            vfCtx.moveTo(canvasX, canvasY);
+                        } else {
+                            vfCtx.lineTo(canvasX, canvasY);
+                            vfCtx.stroke();
+                            vfCtx.beginPath();
+                            vfCtx.moveTo(canvasX, canvasY);
+                        }
+                    }
+                    lastInBounds = inBounds;
+                }
+            }
+
+            if (particle) {
+                drawParticle();
+            }
+        }
+
+        function createParticle(canvasX, canvasY) {
+            isEtching = false;  // Reset etching state for new particle
+            const s = (canvasX - drawingArea.x) / drawingArea.width * Smax;
+            const t = Tmax - (canvasY - drawingArea.y) / drawingArea.height * Tmax;
+            particle = { s: s, t: t, trail: [] };
+            time = 0;
+            trajectoryData = [];
+            document.getElementById('timeDisplay').textContent = 'Time: 0.0 sec';
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            animateParticle();
+        }
+
+        function drawParticle() {
+            vfCtx.lineWidth = 2;
+            vfCtx.strokeStyle = isEtching ? ETCH_COLOR : 'black';
+
+            vfCtx.beginPath();
+            particle.trail.forEach((point, index) => {
+                const canvasX = drawingArea.x + (point.s / Smax) * drawingArea.width;
+                const canvasT = drawingArea.y + ((Tmax - point.t) / Tmax) * drawingArea.height;
+
+                if (index === 0) {
+                    vfCtx.moveTo(canvasX, canvasT);
+                } else {
+                    vfCtx.lineTo(canvasX, canvasT);
+                }
+            });
+            vfCtx.stroke();
+
+            const canvasX = drawingArea.x + (particle.s / Smax) * drawingArea.width;
+            const canvasT = drawingArea.y + ((Tmax - particle.t) / Tmax) * drawingArea.height;
+            vfCtx.fillStyle = isEtching ? ETCH_COLOR : 'black';
+            vfCtx.beginPath();
+            vfCtx.arc(canvasX, canvasT, 4, 0, 2 * Math.PI);
+            vfCtx.fill();
+        }
+        function animateParticle() {
+            if (speed === 0) {
+                return;
+            }
+
+            const dt = 0.01;
+
+            function calcDerivatives(s, tuna) {
+                return [
+                    alpha * s * (1 - s/(q*tuna)),
+                    beta * tuna * (1 - tuna/m) - c*s*tuna/(h + tuna)
+                ];
+            }
+
+            let [s, tuna] = [particle.s, particle.t];
+            let k1 = calcDerivatives(s, tuna);
+            let k2 = calcDerivatives(s + dt*k1[0]/2, tuna + dt*k1[1]/2);
+            let k3 = calcDerivatives(s + dt*k2[0]/2, tuna + dt*k2[1]/2);
+            let k4 = calcDerivatives(s + dt*k3[0], tuna + dt*k3[1]);
+
+            particle.s += (dt/6) * (k1[0] + 2*k2[0] + 2*k3[0] + k4[0]);
+            particle.t += (dt/6) * (k1[1] + 2*k2[1] + 2*k3[1] + k4[1]);
+
+            particle.trail.push({ s: particle.s, t: particle.t });
+            trajectoryData.push({ time: time, s: particle.s, t: particle.t });
+
+            time += dt;
+            document.getElementById('timeDisplay').textContent = `Time: ${time.toFixed(1)} sec`;
+
+            drawVectorField();
+            drawTrajectoryGraph();
+
+            const delay = (19 - speed) * 1;
+            animationId = setTimeout(() => {
+                requestAnimationFrame(animateParticle);
+            }, delay);
+        }
+
+        function drawTrajectoryGraph() {
+            pgCtx.clearRect(0, 0, populationGraph.width, populationGraph.height);
+
+            // Draw axes
+            pgCtx.beginPath();
+            pgCtx.strokeStyle = AXIS_COLOR;
+            pgCtx.moveTo(50, 10);
+            pgCtx.lineTo(50, 180);
+            pgCtx.lineTo(490, 180);
+            pgCtx.stroke();
+
+            // Label axes
+            pgCtx.fillStyle = AXIS_COLOR;
+            pgCtx.font = '12px Arial';
+            pgCtx.textAlign = 'center';
+            pgCtx.fillText('Time', 270, 195);
+
+            pgCtx.save();
+            pgCtx.translate(15, 95);
+            pgCtx.rotate(-Math.PI/2);
+            pgCtx.fillText('Values', 0, 0);
+            pgCtx.restore();
+
+            if (trajectoryData.length > 1) {
+                const maxTime = Math.max(...trajectoryData.map(d => d.time));
+                const maxVal = Math.max(...trajectoryData.map(d => Math.max(Math.abs(d.s), Math.abs(d.t))));
+                const scale = maxVal > Smax ? maxVal : Smax;
+
+                // Draw S trajectory
+                pgCtx.strokeStyle = 'blue';
+                pgCtx.beginPath();
+                trajectoryData.forEach((d, i) => {
+                    const x = 50 + (d.time / maxTime) * 440;
+                    const y = 180 - (d.s / scale) * 170;
+                    if (i === 0) pgCtx.moveTo(x, y);
+                    else pgCtx.lineTo(x, y);
+                });
+                pgCtx.stroke();
+
+                // Draw T trajectory
+                pgCtx.strokeStyle = 'red';
+                pgCtx.beginPath();
+                trajectoryData.forEach((d, i) => {
+                    const x = 50 + (d.time / maxTime) * 440;
+                    const y = 180 - (d.t / scale) * 170;
+                    if (i === 0) pgCtx.moveTo(x, y);
+                    else pgCtx.lineTo(x, y);
+                });
+                pgCtx.stroke();
+
+                // Add legend
+                pgCtx.fillStyle = 'blue';
+                pgCtx.fillText('Sharks', 70, 20);
+                pgCtx.fillStyle = 'red';
+                pgCtx.fillText('Tuna', 70, 35);
+            }
+        }
+
+        vectorField.addEventListener('click', function(event) {
+            const rect = vectorField.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            createParticle(x, y);
+        });
+
+        document.getElementById('showNullclines').addEventListener('click', function() {
+            showingNullclines = !showingNullclines;
+            this.style.opacity = showingNullclines ? '0.7' : '1';
+            this.textContent = showingNullclines ? 'Hide Nullclines' : 'Show Nullclines';
+            drawVectorField();
+        });
+
+        document.getElementById('etchTrajectory').addEventListener('click', function() {
+            if (particle && particle.trail.length > 0) {
+                isEtching = true;
+                etchedTrajectories.push([...particle.trail]);
+                if (etchedTrajectories.length > 5) {
+                    etchedTrajectories.shift();  // Remove the oldest trajectory
+                }
+                drawVectorField();
+            }
+        });
+
+        document.getElementById('speed').addEventListener('input', function(event) {
+            speed = parseInt(event.target.value);
+            if (particle) {
+                if (animationId) {
+                    clearTimeout(animationId);
+                }
+                animateParticle();
+            }
+        });
+
+        window.addEventListener('load', resetSimulation);
+    </script>
+</body>
+</html>
