@@ -275,7 +275,7 @@
             for (let i = 0; i <= GRID_SIZE; i++) {
                 for (let j = 0; j <= GRID_SIZE; j++) {
                     const x = -3 + (i / GRID_SIZE) * 6;
-                    const p = 3 - (j / GRID_SIZE) * 6;
+                    const p = -3 + (j / GRID_SIZE) * 6;
 
                     const dx = u * p;
                     const dp = -k * x;
@@ -284,10 +284,10 @@
                     if (magnitude === 0) continue;
 
                     const normalizedDx = dx / magnitude;
-                    const normalizedDp = dp / magnitude;
+                    const normalizedDp = -dp / magnitude;
 
                     const canvasX = drawingArea.x + ((x + 3) / 6) * drawingArea.width;
-                    const canvasP = drawingArea.y + ((p + 3) / 6) * drawingArea.height;
+                    const canvasP = drawingArea.y + ((3 - p) / 6) * drawingArea.height;
 
                     vfCtx.beginPath();
                     vfCtx.moveTo(canvasX, canvasP);
@@ -337,7 +337,7 @@
 
         function createParticle(canvasX, canvasY) {
             const x = -3 + ((canvasX - drawingArea.x) / drawingArea.width) * 6;
-            const p = -3 + ((canvasY - drawingArea.y) / drawingArea.height) * 6;
+            const p = 3 - ((canvasY - drawingArea.y) / drawingArea.height) * 6;
             particle = { x: x, p: p, trail: [] };
             time = 0;
             trajectoryData = [];
@@ -399,7 +399,7 @@
             vfCtx.beginPath();
             particle.trail.forEach((point, index) => {
                 const canvasX = drawingArea.x + ((point.x + 3) / 6) * drawingArea.width;
-                const canvasP = drawingArea.y + ((point.p + 3) / 6) * drawingArea.height;
+                const canvasP = drawingArea.y + ((3 - point.p) / 6) * drawingArea.height;
 
                 if (index === 0) {
                     vfCtx.moveTo(canvasX, canvasP);
@@ -410,7 +410,7 @@
             vfCtx.stroke();
 
             const canvasX = drawingArea.x + ((particle.x + 3) / 6) * drawingArea.width;
-            const canvasP = drawingArea.y + ((particle.p + 3) / 6) * drawingArea.height;
+            const canvasP = drawingArea.y + ((3 - particle.p) / 6) * drawingArea.height;
             vfCtx.fillStyle = 'black';
             vfCtx.beginPath();
             vfCtx.arc(canvasX, canvasP, 4, 0, 2 * Math.PI);
