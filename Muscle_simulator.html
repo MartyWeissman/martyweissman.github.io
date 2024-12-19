@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<!-- saved from url=(0067)file:///Users/martinweissman/Downloads/hutchinson-model%20(15).html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Muscle Simulator</title>
+    <link rel="stylesheet" href="./Muscle_simulator_files/pico.min.css">
+    <style>
+        body {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        canvas {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ccc;
+            margin: 1rem 0;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: auto auto;
+            width: 1000px;
+            margin: 1rem auto;
+            gap: 1rem;
+            align-items: baseline;
+        }
+        input[type="number"] {
+            width: 4.5em;
+            height: 1.4rem;
+            font: inherit;
+            padding: 0 0.2rem;
+        }
+        button {
+            font: inherit;
+            padding: 0.2rem 0.8rem;
+            width: max-content;
+            height: 1.8rem;
+            justify-self: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple Muscle Simulator</h1>
+    
+    <canvas id="plotCanvas" width="2240" height="800"></canvas>
+    
+    <div class="grid-container">
+        <label for="leq">Equilibrium length (L<sub>eq</sub>):  <input type="number" id="leq" value="20" min="1" step="1"></label>
+        <label for="r">Reflex magnitude (r):  <input type="number" id="r" value="30" min="0.01" step="0.01"></label>
+        <label for="tau">Time delay (τ):  <input type="number" id="tau" value="15" min="1" step="1"></label>
+        <label for="l0">Initial length (L₀):  <input type="number" id="l0" value="15" min="0" step="1"></label>
+        <button id="solve">Solve</button>
+        <div>L'(t) = r(L<sub>eq</sub> - L(t-τ))</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('plotCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set actual canvas size (2x for better resolution on high DPI displays)
+        canvas.width = canvas.offsetWidth * 2;
+        canvas.height = canvas.offsetHeight * 2;
+        
+        // Store solved points
+        let solution = [];
+        let isAnimating = false;
+        
+        function getPastValue(t, tau, l0) {
+            const tauSeconds = tau / 1000; // Convert ms to seconds
+            if (t - tauSeconds <= 0) return l0;
+            const idx = Math.floor((t - tauSeconds) / dt);
+            if (idx >= solution.length) return solution[solution.length - 1].l;
+            return solution[idx].l;
+        }
+        
+        function dL(t, l, params) {
+            const { r, leq, tau, l0 } = params;
+            const lTauAgo = getPastValue(t, tau, l0);
+            let rate = r * (leq - lTauAgo);
+            
+            // Apply hard walls
+            if (l <= 10 && rate < 0) rate = 0;  // At minimum length, prevent shortening
+            if (l >= 30 && rate > 0) rate = 0;  // At maximum length, prevent lengthening
+            
+            return rate;
+        }
+        
+        const dt = 0.001; // Time step (1ms)
+        const stepsPerFrame = 100;
+        
+        function solveStep(t, params) {
+            const l = solution[solution.length - 1].l;
+            
+            // RK4 method
+            const k1 = dL(t, l, params);
+            const k2 = dL(t + dt/2, l + dt*k1/2, params);
+            const k3 = dL(t + dt/2, l + dt*k2/2, params);
+            const k4 = dL(t + dt, l + dt*k3, params);
+            
+            const newL = l + (dt/6) * (k1 + 2*k2 + 2*k3 + k4);
+            solution.push({ t: t + dt, l: newL });
+        }
+        
+        function drawPoint(t, l, color, size = 8) {
+            const padding = 50 * 2;
+            const plotWidth = canvas.width - padding * 2;
+            const plotHeight = canvas.height - padding * 2;
+            
+            const x = padding + (plotWidth * t / 3);
+            const y = canvas.height - padding - (plotHeight * l / 40);
+            
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.arc(x, y, size, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+        
+        function drawAxes() {
+            const padding = 50 * 2;
+            const plotWidth = canvas.width - padding * 2;
+            const plotHeight = canvas.height - padding * 2;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            
+            // Draw shaded regions for invalid muscle lengths
+            ctx.fillStyle = 'rgba(200, 200, 200, 0.3)';
+            
+            // Region 0-10cm
+            const y10 = canvas.height - padding - (plotHeight * 10 / 40);
+            ctx.fillRect(padding, y10, plotWidth, canvas.height - padding - y10);
+            
+            // Region 30-40cm
+            const y30 = canvas.height - padding - (plotHeight * 30 / 40);
+            ctx.fillRect(padding, padding, plotWidth, y30 - padding);
+            
+            // Draw vertical time markers at 1000, 2000, 3000ms
+            ctx.strokeStyle = 'rgba(128, 128, 128, 0.5)';
+            ctx.lineWidth = 2;
+            [1000, 2000, 3000].forEach(time => {
+                const x = padding + (plotWidth * time / 3000);
+                ctx.beginPath();
+                ctx.moveTo(x, padding);
+                ctx.lineTo(x, canvas.height - padding);
+                ctx.stroke();
+            });
+            
+            // Reset stroke style for axes
+            ctx.strokeStyle = '#000';
+            
+            // Draw axes
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, canvas.height - padding);
+            ctx.lineTo(canvas.width - padding, canvas.height - padding);
+            ctx.stroke();
+            
+            // Draw time axis ticks and labels
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.font = '24px Arial';
+            ctx.fillStyle = 'black';
+            for(let i = 0; i <= 12; i++) {
+                const x = padding + (plotWidth * i / 12);
+                const timeValue = i * 250;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, canvas.height - padding);
+                ctx.lineTo(x, canvas.height - padding + 5 * 2);
+                ctx.stroke();
+                
+                ctx.fillText(timeValue.toString(), x, canvas.height - padding + 8 * 2);
+            }
+            
+            // Draw length axis ticks and labels
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for(let i = 0; i <= 4; i++) {
+                const y = canvas.height - padding - (plotHeight * i / 4);
+                const lengthValue = i * 10;
+                
+                ctx.beginPath();
+                ctx.moveTo(padding - 5 * 2, y);
+                ctx.lineTo(padding, y);
+                ctx.stroke();
+                
+                ctx.fillText(lengthValue.toString(), padding - 8 * 2, y);
+            }
+            
+            // Add axis labels
+            ctx.save();
+            ctx.translate(padding / 4, canvas.height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'black';
+            ctx.fillText('Length (cm)', 0, 0);
+            ctx.restore();
+            
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'black';
+            ctx.fillText('Time (ms)', canvas.width / 2, canvas.height - padding / 3);
+            
+            // Draw equilibrium length line
+            const leq = parseFloat(document.getElementById('leq').value);
+            const yLeq = canvas.height - padding - (plotHeight * leq / 40);
+            
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+            ctx.lineWidth = 4;
+            ctx.moveTo(padding, yLeq);
+            ctx.lineTo(canvas.width - padding, yLeq);
+            ctx.stroke();
+            
+            // Draw initial condition point
+            const l0 = parseFloat(document.getElementById('l0').value);
+            const yInit = canvas.height - padding - (plotHeight * l0 / 40);
+            
+            ctx.beginPath();
+            ctx.fillStyle = 'darkgreen';
+            ctx.arc(padding, yInit, 8, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+        
+        function drawSolution() {
+            const padding = 50 * 2;
+            const plotWidth = canvas.width - padding * 2;
+            const plotHeight = canvas.height - padding * 2;
+            
+            // Draw solution curve
+            ctx.beginPath();
+            ctx.strokeStyle = 'green';
+            ctx.lineWidth = 4;
+            
+            for (let i = 1; i < solution.length; i++) {
+                const x1 = padding + (plotWidth * solution[i-1].t / 3);
+                const y1 = canvas.height - padding - (plotHeight * solution[i-1].l / 40);
+                const x2 = padding + (plotWidth * solution[i].t / 3);
+                const y2 = canvas.height - padding - (plotHeight * solution[i].l / 40);
+                
+                if (i === 1) ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+            }
+            ctx.stroke();
+
+            // Draw current state dot (black)
+            if (solution.length > 0) {
+                const current = solution[solution.length - 1];
+                drawPoint(current.t, current.l, 'black');
+                
+                // Draw delayed state dot (red) if we're past tau
+                const tau = parseFloat(document.getElementById('tau').value);
+                if (current.t > tau/1000) {  // Convert tau to seconds for comparison
+                    const delayedL = getPastValue(current.t, tau, solution[0].l);
+                    drawPoint(current.t - tau/1000, delayedL, 'red');
+                }
+            }
+        }
+        
+        function animate() {
+            if (!isAnimating) return;
+            
+            const params = {
+                r: parseFloat(document.getElementById('r').value),
+                leq: parseFloat(document.getElementById('leq').value),
+                tau: parseFloat(document.getElementById('tau').value),
+                l0: parseFloat(document.getElementById('l0').value)
+            };
+            
+            const currentT = solution.length ? solution[solution.length - 1].t : 0;
+            
+            // Solve next chunk
+            for (let i = 0; i < stepsPerFrame && currentT + i*dt < 3; i++) {
+                solveStep(currentT + i*dt, params);
+            }
+            
+            // Redraw
+            drawAxes();
+            drawSolution();
+            
+            // Continue animation if not finished
+            if (solution[solution.length - 1].t < 3) {
+                requestAnimationFrame(animate);
+            } else {
+                isAnimating = false;
+            }
+        }
+        
+        // Initial draw
+        drawAxes();
+        
+        // Redraw when parameters change
+        document.getElementById('leq').addEventListener('input', drawAxes);
+        document.getElementById('l0').addEventListener('input', drawAxes);
+        
+        document.getElementById('solve').addEventListener('click', () => {
+            // Reset and start new solution
+            solution = [{
+                t: 0,
+                l: parseFloat(document.getElementById('l0').value)
+            }];
+            isAnimating = true;
+            requestAnimationFrame(animate);
+        });
+    </script>
+
+</body></html>
