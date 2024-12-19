@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hutchinson Model Simulator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/1.5.10/pico.min.css">
+    <style>
+        body {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        canvas {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ccc;
+            margin: 1rem 0;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: auto auto;
+            width: 1000px;
+            margin: 1rem auto;
+            gap: 1rem;
+            align-items: baseline;
+        }
+        input[type="number"] {
+            width: 4.5em;
+            height: 1.4rem;
+            font: inherit;
+            padding: 0 0.2rem;
+        }
+        button {
+            font: inherit;
+            padding: 0.2rem 0.8rem;
+            width: max-content;
+            height: 1.8rem;
+            justify-self: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Hutchinson model of population growth with time delay</h1>
+    
+    <canvas id="plotCanvas"></canvas>
+    
+    <div class="grid-container">
+        <label for="k">Carrying capacity (k):  <input type="number" id="k" value="100" min="1" step="1"></label>
+        <label for="beta">Birth rate (β):  <input type="number" id="beta" value="0.1" min="0.01" step="0.01"></label>
+        <label for="tau">Time delay (τ):  <input type="number" id="tau" value="1" min="0.1" step="0.1"></label>
+        <label for="p0">Initial population (P₀):  <input type="number" id="p0" value="10" min="0" step="1"></label>
+        <button id="solve">Solve</button>
+        <div>P'(t) = β P(t) (1 - P(t-τ)/k)</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('plotCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set actual canvas size (2x for better resolution on high DPI displays)
+        canvas.width = canvas.offsetWidth * 2;
+        canvas.height = canvas.offsetHeight * 2;
+        
+        // Store solved points
+        let solution = [];
+        let isAnimating = false;
+        
+        function getPastValue(t, tau, p0) {
+            if (t - tau <= 0) return p0;
+            // Find the closest solved point before t-tau
+            const idx = Math.floor((t - tau) / dt);
+            if (idx >= solution.length) return solution[solution.length - 1].p;
+            return solution[idx].p;
+        }
+        
+        function dP(t, p, params) {
+            const { beta, k, tau, p0 } = params;
+            const pTauAgo = getPastValue(t, tau, p0);
+            return beta * p * (1 - pTauAgo / k);
+        }
+        
+        const dt = 0.05; // Time step
+        const stepsPerFrame = 100; // How many steps to solve per frame
+        
+        function solveStep(t, params) {
+            const p = solution[solution.length - 1].p;
+            
+            // RK4 method
+            const k1 = dP(t, p, params);
+            const k2 = dP(t + dt/2, p + dt*k1/2, params);
+            const k3 = dP(t + dt/2, p + dt*k2/2, params);
+            const k4 = dP(t + dt, p + dt*k3, params);
+            
+            const newP = p + (dt/6) * (k1 + 2*k2 + 2*k3 + k4);
+            solution.push({ t: t + dt, p: newP });
+        }
+
+        function drawPoint(t, p, color, size = 8) {
+            const padding = 50 * 2;
+            const plotWidth = canvas.width - padding * 2;
+            const plotHeight = canvas.height - padding * 2;
+            
+            const x = padding + (plotWidth * t / 1000);
+            const y = canvas.height - padding - (plotHeight * p / 200);
+            
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.arc(x, y, size, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+        
+        function drawAxes() {
+            const padding = 50 * 2; // Scaled for high DPI
+            const plotWidth = canvas.width - padding * 2;
+            const plotHeight = canvas.height - padding * 2;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            
+            // Draw axes
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, canvas.height - padding);
+            ctx.lineTo(canvas.width - padding, canvas.height - padding);
+            ctx.stroke();
+            
+            // Draw time axis ticks and labels
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.font = '24px Arial'; // Scaled for high DPI
+            ctx.fillStyle = 'black';
+            for(let i = 0; i <= 10; i++) {
+                const x = padding + (plotWidth * i / 10);
+                const timeValue = i * 100; // 0 to 1000
+                
+                ctx.beginPath();
+                ctx.moveTo(x, canvas.height - padding);
+                ctx.lineTo(x, canvas.height - padding + 5 * 2);
+                ctx.stroke();
+                
+                ctx.fillText(timeValue.toString(), x, canvas.height - padding + 8 * 2);
+            }
+            
+            // Draw population axis ticks and labels
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for(let i = 0; i <= 4; i++) {
+                const y = canvas.height - padding - (plotHeight * i / 4);
+                const popValue = i * 50; // 0 to 200
+                
+                ctx.beginPath();
+                ctx.moveTo(padding - 5 * 2, y);
+                ctx.lineTo(padding, y);
+                ctx.stroke();
+                
+                ctx.fillText(popValue.toString(), padding - 8 * 2, y);
+            }
+            
+            // Add axis labels
+            ctx.save();
+            ctx.translate(padding / 4, canvas.height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'black';
+            ctx.fillText('Population', 0, 0);
+            ctx.restore();
+            
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'black';
+            ctx.fillText('Time', canvas.width / 2, canvas.height - padding / 3);
+            
+            // Draw carrying capacity line
+            const k = parseFloat(document.getElementById('k').value);
+            const yK = canvas.height - padding - (plotHeight * k / 200);
+            
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+            ctx.lineWidth = 4;
+            ctx.moveTo(padding, yK);
+            ctx.lineTo(canvas.width - padding, yK);
+            ctx.stroke();
+            
+            // Draw initial condition point
+            const p0 = parseFloat(document.getElementById('p0').value);
+            const y0 = canvas.height - padding - (plotHeight * p0 / 200);
+            
+            ctx.beginPath();
+            ctx.fillStyle = 'darkgreen';
+            ctx.arc(padding, y0, 8, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+        
+        function drawSolution() {
+            const padding = 50 * 2;
+            const plotWidth = canvas.width - padding * 2;
+            const plotHeight = canvas.height - padding * 2;
+            
+            // Draw solution curve
+            ctx.beginPath();
+            ctx.strokeStyle = 'green';
+            ctx.lineWidth = 4;
+            
+            for (let i = 1; i < solution.length; i++) {
+                const x1 = padding + (plotWidth * solution[i-1].t / 1000);
+                const y1 = canvas.height - padding - (plotHeight * solution[i-1].p / 200);
+                const x2 = padding + (plotWidth * solution[i].t / 1000);
+                const y2 = canvas.height - padding - (plotHeight * solution[i].p / 200);
+                
+                if (i === 1) ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+            }
+            ctx.stroke();
+
+            // Draw current state dot (black)
+            if (solution.length > 0) {
+                const current = solution[solution.length - 1];
+                drawPoint(current.t, current.p, 'black');
+                
+                // Draw delayed state dot (red) if we're past tau
+                const tau = parseFloat(document.getElementById('tau').value);
+                if (current.t > tau) {
+                    const delayedP = getPastValue(current.t, tau, solution[0].p);
+                    drawPoint(current.t - tau, delayedP, 'red');
+                }
+            }
+        }
+        
+        function animate() {
+            if (!isAnimating) return;
+            
+            const params = {
+                beta: parseFloat(document.getElementById('beta').value),
+                k: parseFloat(document.getElementById('k').value),
+                tau: parseFloat(document.getElementById('tau').value),
+                p0: parseFloat(document.getElementById('p0').value)
+            };
+            
+            const currentT = solution.length ? solution[solution.length - 1].t : 0;
+            
+            // Solve next chunk
+            for (let i = 0; i < stepsPerFrame && currentT + i*dt < 1000; i++) {
+                solveStep(currentT + i*dt, params);
+            }
+            
+            // Redraw
+            drawAxes();
+            drawSolution();
+            
+            // Continue animation if not finished
+            if (solution[solution.length - 1].t < 1000) {
+                requestAnimationFrame(animate);
+            } else {
+                isAnimating = false;
+            }
+        }
+        
+        // Initial draw
+        drawAxes();
+        
+        // Redraw when parameters change
+        document.getElementById('k').addEventListener('input', drawAxes);
+        document.getElementById('p0').addEventListener('input', drawAxes);
+        
+        document.getElementById('solve').addEventListener('click', () => {
+            // Reset and start new solution
+            solution = [{
+                t: 0,
+                p: parseFloat(document.getElementById('p0').value)
+            }];
+            isAnimating = true;
+            requestAnimationFrame(animate);
+        });
+    </script>
+</body>
+</html>
