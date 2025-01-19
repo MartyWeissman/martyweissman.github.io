@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rapid Coin Flipper</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/1.5.10/pico.min.css">
+    <style>
+        :root {
+            --primary-color: #1e88e5;
+            --secondary-color: #e3f2fd;
+            --border-color: #ccc;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            max-width: 800px;
+        }
+
+        .input-item {
+            padding-right: 1rem;
+        }
+
+        .output-window {
+            font-family: monospace;
+            white-space: pre-wrap;
+            width: 100%;
+            max-width: 800px;
+            min-height: 120px;
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            margin: 1rem 0;
+            background: white;
+            color: black;
+            border-radius: 4px;
+            font-size: 16px;
+            line-height: 1.5;
+            letter-spacing: 1px;
+        }
+
+        .plot-window {
+            width: 100%;
+            max-width: 800px;
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            margin: 1rem 0;
+            background: white;
+            border-radius: 4px;
+        }
+
+        .stats-grid {
+            display: grid;
+            gap: 1rem;
+            max-width: 800px;
+        }
+
+        .stat-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-item {
+            padding: 1rem;
+            background: var(--secondary-color);
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .axis-line {
+            stroke: #000;
+            stroke-width: 1;
+        }
+
+        .tick-line {
+            stroke: #ddd;
+            stroke-width: 0.5;
+        }
+
+        .time-line {
+            stroke: #eee;
+            stroke-width: 0.5;
+        }
+
+        .walk-line {
+            stroke: var(--primary-color);
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .error {
+            color: #d32f2f;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Rapid Coin Flipper</h1>
+        <div class="input-group">
+            <div class="input-item">
+                <label for="probHeads">Probability of Heads:</label>
+                <input type="number" id="probHeads" value="0.5" step="0.01" min="0" max="1">
+                <div id="probHeadsError" class="error"></div>
+            </div>
+            <div class="input-item">
+                <label for="probTails">Probability of Tails:</label>
+                <input type="number" id="probTails" value="0.5" readonly>
+            </div>
+            <div class="input-item">
+                <label for="numFlips">Number of Flips:</label>
+                <input type="number" id="numFlips" value="100" min="1" max="200">
+                <div id="numFlipsError" class="error"></div>
+            </div>
+        </div>
+        <button id="flipButton">Flip!</button>
+        <div class="output-window" id="output"></div>
+        <div class="plot-window">
+            <svg id="plot" width="100%" height="300" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+        <div id="stats" class="stats-grid"></div>
+    </div>
+    <script>
+        class CoinFlipper {
+            constructor() {
+                this.initializeElements();
+                this.setupEventListeners();
+            }
+
+            initializeElements() {
+                this.probHeadsInput = document.getElementById('probHeads');
+                this.probTailsInput = document.getElementById('probTails');
+                this.numFlipsInput = document.getElementById('numFlips');
+                this.flipButton = document.getElementById('flipButton');
+                this.output = document.getElementById('output');
+                this.stats = document.getElementById('stats');
+                this.probHeadsError = document.getElementById('probHeadsError');
+                this.numFlipsError = document.getElementById('numFlipsError');
+            }
+
+            setupEventListeners() {
+                this.probHeadsInput.addEventListener('input', () => this.updateTailsProbability());
+                this.numFlipsInput.addEventListener('input', () => this.validateNumFlips());
+                this.flipButton.addEventListener('click', () => this.handleFlip());
+            }
+
+            updateTailsProbability() {
+                let p = parseFloat(this.probHeadsInput.value);
+                this.probHeadsError.textContent = '';
+
+                if (isNaN(p)) {
+                    this.probHeadsError.textContent = 'Please enter a valid number';
+                    this.probTailsInput.value = '';
+                    return;
+                }
+
+                // Only clamp the value when it's fully entered and invalid
+                if (p < 0) p = 0;
+                if (p > 1) p = 1;
+
+                this.probTailsInput.value = (1 - p).toFixed(3);
+            }
+
+            validateNumFlips() {
+                let n = parseInt(this.numFlipsInput.value);
+                this.numFlipsError.textContent = '';
+
+                if (isNaN(n)) {
+                    this.numFlipsError.textContent = 'Please enter a valid number';
+                    return;
+                }
+
+                if (n < 1 || n > 200) {
+                    this.numFlipsError.textContent = 'Number must be between 1 and 200';
+                    n = Math.max(1, Math.min(200, n));
+                }
+
+                this.numFlipsInput.value = n;
+            }
+
+            getLongestRun(arr, value) {
+                return arr.reduce((acc, curr, i, arr) => {
+                    let currentRun = curr === value ? (i > 0 && arr[i-1] === value ? acc.currentRun + 1 : 1) : 0;
+                    return {
+                        maxRun: Math.max(acc.maxRun, currentRun),
+                        currentRun: currentRun
+                    };
+                }, { maxRun: 0, currentRun: 0 }).maxRun;
+            }
+
+            getFirstOccurrence(arr, value) {
+                const index = arr.indexOf(value);
+                return index === -1 ? "Not found" : (index + 1).toString();
+            }
+
+            binomialProbability(k, n, p) {
+                // k is observed heads, n is total flips, p is probability of heads
+                const observed_diff = 2 * k - n;  // Convert to heads minus tails
+                const expected_diff = n * (2 * p - 1);  // Expected heads minus tails
+
+                if (n > 30) {
+                    const diff_stddev = 2 * Math.sqrt(n * p * (1 - p));  // Standard deviation of difference
+                    const z = (observed_diff - expected_diff) / diff_stddev;
+                    // One-sided p-value
+                    return 1 - this.normalCDF(z);
+                }
+
+                // For small n, calculate exact binomial probability
+                let sum = 0;
+                const more_extreme = observed_diff > expected_diff;
+
+                for (let i = 0; i <= n; i++) {
+                    const diff = 2 * i - n;  // heads minus tails for this possibility
+                    if (more_extreme ? diff >= observed_diff : diff <= observed_diff) {
+                        sum += this.binomialCoefficient(n, i) * Math.pow(p, i) * Math.pow(1 - p, n - i);
+                    }
+                }
+                return sum;
+            }
+
+            normalCDF(z) {
+                const terms = 100;
+                const sum = Array.from({length: terms}, (_, i) => {
+                    const term = Math.pow(z, 2 * i + 1) / this.factorial(2 * i + 1);
+                    return i % 2 === 0 ? term : -term;
+                }).reduce((a, b) => a + b, 0);
+
+                return 0.5 + sum * Math.exp(-Math.pow(z, 2) / 2) / Math.sqrt(2 * Math.PI);
+            }
+
+            factorial(n) {
+                return n <= 1 ? 1 : n * this.factorial(n - 1);
+            }
+
+            binomialCoefficient(n, k) {
+                if (k > n) return 0;
+                if (k === 0 || k === n) return 1;
+                if (k > n - k) k = n - k;
+
+                let result = 1;
+                for (let i = 0; i < k; i++) {
+                    result *= (n - i);
+                    result /= (i + 1);
+                }
+                return result;
+            }
+
+            formatFlips(results) {
+                return results.reduce((acc, curr, i) => {
+                    if (i > 0 && i % 5 === 0) acc += ' ';
+                    if (i > 0 && i % 50 === 0) acc += '\n';
+                    return acc + curr;
+                }, '');
+            }
+
+            drawPlot(walkPositions, n, p, stdDev) {
+                const svg = document.getElementById('plot');
+                const width = svg.clientWidth;
+                const height = svg.clientHeight;
+                const paddingLeft = 20;  // Reduced left padding
+                const paddingRight = 120;  // Increased right padding
+                const paddingTop = 40;
+                const paddingBottom = 40;
+
+                svg.innerHTML = '';
+
+                const xScale = (width - (paddingLeft + paddingRight)) / n;
+                const expectedDiff = n * (p - (1-p));
+                const diffStdDev = 2 * stdDev;
+
+                const yMin = Math.min(0, expectedDiff - 3 * diffStdDev);
+                const yMax = Math.max(0, expectedDiff + 3 * diffStdDev);
+                const yScale = (height - (paddingTop + paddingBottom)) / (yMax - yMin);
+
+                let svgContent = '';
+
+                // Vertical time lines every 10 units
+                for (let i = 0; i <= n; i += 10) {
+                    const x = paddingLeft + i * xScale;
+                    svgContent += `
+                        <line x1="${x}" y1="${paddingTop}" x2="${x}" y2="${height-paddingBottom}"
+                              class="time-line"/>
+                    `;
+                }
+
+                // Zero tick (on left)
+                const y0 = height - paddingBottom - (0 - yMin) * yScale;
+                svgContent += `
+                    <line x1="${paddingLeft}" y1="${y0}" x2="${width-paddingRight}" y2="${y0}"
+                          class="tick-line" style="stroke: #888"/>
+                    <text x="${paddingLeft-5}" y="${y0}"
+                          text-anchor="end" alignment-baseline="middle"
+                          fill="#888">0</text>
+                `;
+
+                // Expectation line and label (in light green)
+                const yExp = height - paddingBottom - (expectedDiff - yMin) * yScale;
+                svgContent += `
+                    <line x1="${paddingLeft}" y1="${yExp}" x2="${width-paddingRight}" y2="${yExp}"
+                          class="tick-line" style="stroke: #90EE90"/>
+                    <text x="${width-paddingRight+8}" y="${yExp}"
+                          text-anchor="start" alignment-baseline="middle"
+                          fill="#90EE90">${expectedDiff.toFixed(1)}</text>
+                `;
+
+                // Add sigma ticks (on right)
+                for (let i = 1; i <= 3; i++) {
+                    // Positive sigma
+                    const yPlus = height - paddingBottom - ((expectedDiff + i * diffStdDev) - yMin) * yScale;
+                    svgContent += `
+                        <line x1="${paddingLeft}" y1="${yPlus}" x2="${width-paddingRight}" y2="${yPlus}"
+                              class="tick-line"/>
+                        <text x="${width-paddingRight+8}" y="${yPlus}"
+                              text-anchor="start" alignment-baseline="middle">+${i}σ (${(expectedDiff + i * diffStdDev).toFixed(1)})</text>
+                    `;
+
+                    // Negative sigma
+                    const yMinus = height - paddingBottom - ((expectedDiff - i * diffStdDev) - yMin) * yScale;
+                    svgContent += `
+                        <line x1="${paddingLeft}" y1="${yMinus}" x2="${width-paddingRight}" y2="${yMinus}"
+                              class="tick-line"/>
+                        <text x="${width-paddingRight+8}" y="${yMinus}"
+                              text-anchor="start" alignment-baseline="middle">-${i}σ (${(expectedDiff - i * diffStdDev).toFixed(1)})</text>
+                    `;
+                }
+
+                // Axes
+                svgContent += `
+                    <line x1="${paddingLeft}" y1="${paddingTop}" x2="${paddingLeft}" y2="${height-paddingBottom}"
+                          class="axis-line"/>
+                    <line x1="${paddingLeft}" y1="${height/2}" x2="${width-paddingRight}" y2="${height/2}"
+                          class="axis-line"/>
+                `;
+
+                // Walk path
+                const pathData = walkPositions.reduce((acc, pos, i) => {
+                    const x = paddingLeft + i * xScale;
+                    const y = height - paddingBottom - (pos - yMin) * yScale;
+                    return acc + `${i === 0 ? 'M' : 'L'} ${x} ${y} `;
+                }, '');
+
+                svgContent += `<path d="${pathData}" class="walk-line"/>`;
+
+                // Add starting point marker
+                svgContent += `
+                    <circle cx="${paddingLeft}" cy="${height - paddingBottom - (walkPositions[0] - yMin) * yScale}"
+                            r="4" fill="${getComputedStyle(document.documentElement).getPropertyValue('--primary-color')}"/>
+                `;
+
+                svg.innerHTML = svgContent;
+            }
+
+            displayStats(results, n, p) {
+                const numHeads = results.filter(x => x === 'H').length;
+                const numTails = n - numHeads;
+                const expectedHeads = n * p;
+                const expectedTails = n * (1-p);
+                const stdDev = Math.sqrt(n * p * (1-p));
+
+                // Calculate endpoint (difference) statistics
+                const observedDiff = numHeads - numTails;
+                const expectedDiff = n * (2*p - 1);
+                const diffStdDev = 2 * stdDev;  // Standard deviation for the difference
+
+                this.stats.innerHTML = `
+                    <table role="grid">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>Expected</th>
+                                <th>St Dev</th>
+                                <th>Observed</th>
+                                <th>z-score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th>Heads</th>
+                                <td>${expectedHeads.toFixed(1)}</td>
+                                <td>${stdDev.toFixed(2)}</td>
+                                <td>${numHeads}</td>
+                                <td>${((numHeads - expectedHeads)/stdDev).toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <th>Tails</th>
+                                <td>${expectedTails.toFixed(1)}</td>
+                                <td>${stdDev.toFixed(2)}</td>
+                                <td>${numTails}</td>
+                                <td>${((numTails - expectedTails)/stdDev).toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <th>Endpoint</th>
+                                <td>${expectedDiff.toFixed(1)}</td>
+                                <td>${diffStdDev.toFixed(2)}</td>
+                                <td>${observedDiff}</td>
+                                <td>${((observedDiff - expectedDiff)/diffStdDev).toFixed(2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+
+                return { numHeads, stdDev };
+            }
+
+            handleFlip() {
+                const p = parseFloat(this.probHeadsInput.value);
+                const n = parseInt(this.numFlipsInput.value);
+
+                if (isNaN(p) || p < 0 || p > 1 || isNaN(n) || n < 1 || n > 200) {
+                    alert("Please check your input values");
+                    return;
+                }
+
+                const results = Array.from({length: n}, () => Math.random() < p ? 'H' : 'T');
+                this.output.textContent = this.formatFlips(results);
+
+                const { numHeads, stdDev } = this.displayStats(results, n, p);
+
+                const walkPositions = results.reduce((acc, curr) => {
+                    acc.push(acc[acc.length - 1] + (curr === 'H' ? 1 : -1));
+                    return acc;
+                }, [0]);
+
+                this.drawPlot(walkPositions, n, p, stdDev);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new CoinFlipper();
+        });
+    </script>
+</body>
+</html>
