@@ -103,6 +103,25 @@
             font-size: 0.875rem;
             margin-top: 0.25rem;
         }
+        .output-window {
+            /* ... existing styles ... */
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .first-h {
+            color: #006400;
+            font-weight: bold;
+        }
+        .first-t {
+            color: #8B0000;
+            font-weight: bold;
+        }
+        .longest-h {
+            border-bottom: 2px solid #006400;
+        }
+        .longest-t {
+            border-bottom: 2px solid #8B0000;
+        }
     </style>
 </head>
 <body>
@@ -257,10 +276,49 @@
             }
 
             formatFlips(results) {
+                const firstH = results.indexOf('H');
+                const firstT = results.indexOf('T');
+
+                // Find longest runs
+                const longestH = {start: 0, length: 0};
+                const longestT = {start: 0, length: 0};
+                let currentRun = {start: 0, length: 0, type: results[0]};
+
+                for (let i = 1; i <= results.length; i++) {
+                    if (i < results.length && results[i] === currentRun.type) {
+                        currentRun.length++;
+                    } else {
+                        if (currentRun.type === 'H' && currentRun.length > longestH.length) {
+                            longestH.start = currentRun.start;
+                            longestH.length = currentRun.length;
+                        }
+                        if (currentRun.type === 'T' && currentRun.length > longestT.length) {
+                            longestT.start = currentRun.start;
+                            longestT.length = currentRun.length;
+                        }
+                        if (i < results.length) {
+                            currentRun = {start: i, length: 1, type: results[i]};
+                        }
+                    }
+                }
+
                 return results.reduce((acc, curr, i) => {
+                    let char = curr;
+
+                    // Apply styling
+                    if (i === firstH) {
+                        char = `<span class="first-h">${char}</span>`;
+                    } else if (i === firstT) {
+                        char = `<span class="first-t">${char}</span>`;
+                    } else if (i >= longestH.start && i < longestH.start + longestH.length) {
+                        char = `<span class="longest-h">${char}</span>`;
+                    } else if (i >= longestT.start && i < longestT.start + longestT.length) {
+                        char = `<span class="longest-t">${char}</span>`;
+                    }
+
                     if (i > 0 && i % 5 === 0) acc += ' ';
                     if (i > 0 && i % 50 === 0) acc += '\n';
-                    return acc + curr;
+                    return acc + char;
                 }, '');
             }
 
@@ -423,7 +481,7 @@
                 }
 
                 const results = Array.from({length: n}, () => Math.random() < p ? 'H' : 'T');
-                this.output.textContent = this.formatFlips(results);
+                this.output.innerHTML = this.formatFlips(results);
 
                 const { numHeads, stdDev } = this.displayStats(results, n, p);
 
