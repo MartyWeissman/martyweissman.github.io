@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discrete Logistic Model Explorer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/1.5.10/pico.min.css">
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .title {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        canvas {
+            background-color: transparent;
+            border: 1px solid #ccc;
+        }
+        .canvas-stack {
+            position: relative;
+            width: 600px;
+            height: 400px;
+            background-color: white;
+        }
+        .canvas-stack canvas {
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <h1 class="title">Discrete Logistic Model Explorer</h1>
+        
+        <!-- Time series plot -->
+        <canvas id="timeSeriesCanvas" width="600" height="200"></canvas>
+        
+        <div class="controls">
+            <div>
+                <label for="initialPop">Initial Population:</label>
+                <input type="number" id="initialPop" name="initialPop" value="0.5" step="0.1" min="0" max="2">
+            </div>
+            <div>
+                <label for="beta">β (Birth Rate):</label>
+                <input type="number" id="beta" name="beta" value="1" step="0.1" min="0" max="4">
+            </div>
+            <div>
+                <label>&nbsp;</label>
+                <button id="runButton">Run Simulation</button>
+            </div>
+        </div>
+        
+        <!-- Stacked canvases for bifurcation diagram -->
+        <div class="canvas-stack">
+            <canvas id="bifurcationBackground" width="600" height="400"></canvas>
+            <canvas id="bifurcationPoints" width="600" height="400"></canvas>
+            <canvas id="bifurcationMarkers" width="600" height="400"></canvas>
+        </div>
+    </main>
+
+    <script>
+        // Constants for layout
+        const MARGIN = {
+            LEFT: 50,
+            RIGHT: 20,
+            TOP: 40,
+            BOTTOM: 60
+        };
+
+        // Get DOM elements
+        const timePlot = document.getElementById('timeSeriesCanvas');
+        const timeBackground = document.createElement('canvas');
+        timeBackground.width = timePlot.width;
+        timeBackground.height = timePlot.height;
+
+        const bgCanvas = document.getElementById('bifurcationBackground');
+        const pointsCanvas = document.getElementById('bifurcationPoints');
+        const markerCanvas = document.getElementById('bifurcationMarkers');
+
+        // Get all contexts with alpha enabled
+        const timeCtxBg = timeBackground.getContext('2d', {alpha: true});
+        const timeCtxPlot = timePlot.getContext('2d', {alpha: true});
+        const bgCtx = bgCanvas.getContext('2d', {alpha: true});
+        const pointsCtx = pointsCanvas.getContext('2d', {alpha: true});
+        const markerCtx = markerCanvas.getContext('2d', {alpha: true});
+
+        // Get control elements
+        const betaInput = document.getElementById('beta');
+        const initialPopInput = document.getElementById('initialPop');
+        const runButton = document.getElementById('runButton');
+
+        // Calculate plot dimensions
+        const PLOT = {
+            WIDTH: bgCanvas.width - MARGIN.LEFT - MARGIN.RIGHT,
+            HEIGHT: bgCanvas.height - MARGIN.TOP - MARGIN.BOTTOM
+        };
+
+        function drawTimeBackground() {
+            timeCtxBg.clearRect(0, 0, timeBackground.width, timeBackground.height);
+            timeCtxBg.strokeStyle = '#000';
+            timeCtxBg.fillStyle = '#000';
+            timeCtxBg.font = '12px Arial';
+            
+            // Draw axes
+            timeCtxBg.beginPath();
+            timeCtxBg.moveTo(50, 20);
+            timeCtxBg.lineTo(50, timeBackground.height - 30);
+            timeCtxBg.lineTo(timeBackground.width - 20, timeBackground.height - 30);
+            timeCtxBg.stroke();
+
+            // Y-axis ticks and labels
+            for (let i = 0; i <= 2.0; i += 0.5) {
+                const y = timeBackground.height - 30 - (i * (timeBackground.height - 50) / 2.0);
+                timeCtxBg.textAlign = 'right';
+                timeCtxBg.fillText(i.toFixed(1), 45, y + 4);
+                timeCtxBg.beginPath();
+                timeCtxBg.moveTo(45, y);
+                timeCtxBg.lineTo(55, y);
+                timeCtxBg.stroke();
+            }
+
+            // X-axis ticks
+            for (let i = 0; i <= 50; i += 10) {
+                const x = 50 + (i * (timeBackground.width - 70) / 50);
+                timeCtxBg.textAlign = 'center';
+                timeCtxBg.fillText(i, x, timeBackground.height - 10);
+                timeCtxBg.beginPath();
+                timeCtxBg.moveTo(x, timeBackground.height - 25);
+                timeCtxBg.lineTo(x, timeBackground.height - 35);
+                timeCtxBg.stroke();
+            }
+
+            // Axis labels
+            timeCtxBg.font = '14px Arial';
+            timeCtxBg.textAlign = 'center';
+            timeCtxBg.fillText('Time', timeBackground.width / 2, timeBackground.height - 5);
+            
+            timeCtxBg.save();
+            timeCtxBg.translate(15, timeBackground.height / 2);
+            timeCtxBg.rotate(-Math.PI / 2);
+            timeCtxBg.fillText('Population (P)', 0, 0);
+            timeCtxBg.restore();
+        }
+
+        function drawBifurcationBackground() {
+            bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+            bgCtx.strokeStyle = '#000';
+            bgCtx.lineWidth = 1;
+
+            // Draw gridlines
+            bgCtx.strokeStyle = '#eee';
+            bgCtx.beginPath();
+            [0.0, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0].forEach(beta => {
+                const x = MARGIN.LEFT + (beta * PLOT.WIDTH / 4);
+                bgCtx.moveTo(x, MARGIN.TOP);
+                bgCtx.lineTo(x, MARGIN.TOP + PLOT.HEIGHT);
+            });
+            for (let p = 0; p <= 2.0; p += 0.5) {
+                const y = MARGIN.TOP + PLOT.HEIGHT - (p * PLOT.HEIGHT / 2.0);
+                bgCtx.moveTo(MARGIN.LEFT, y);
+                bgCtx.lineTo(MARGIN.LEFT + PLOT.WIDTH, y);
+            }
+            bgCtx.stroke();
+
+            // Draw axes
+            bgCtx.strokeStyle = '#000';
+            bgCtx.beginPath();
+            bgCtx.moveTo(MARGIN.LEFT, MARGIN.TOP);
+            bgCtx.lineTo(MARGIN.LEFT, MARGIN.TOP + PLOT.HEIGHT);
+            bgCtx.moveTo(MARGIN.LEFT, MARGIN.TOP + PLOT.HEIGHT);
+            bgCtx.lineTo(MARGIN.LEFT + PLOT.WIDTH, MARGIN.TOP + PLOT.HEIGHT);
+            bgCtx.stroke();
+
+            // Y-axis labels (black)
+            bgCtx.font = '12px Arial';
+            bgCtx.fillStyle = '#000';
+            for (let p = 0; p <= 2.0; p += 0.5) {
+                const y = MARGIN.TOP + PLOT.HEIGHT - (p * PLOT.HEIGHT / 2.0);
+                bgCtx.textAlign = 'right';
+                bgCtx.fillText(p.toFixed(1), MARGIN.LEFT - 5, y + 4);
+            }
+
+            // X-axis labels (dark green)
+            bgCtx.fillStyle = '#006400';
+            [0.0, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0].forEach(beta => {
+                const x = MARGIN.LEFT + (beta * PLOT.WIDTH / 4);
+                bgCtx.textAlign = 'center';
+                bgCtx.fillText(beta.toFixed(1), x, MARGIN.TOP + PLOT.HEIGHT + 20);
+            });
+
+            // Axis labels
+            bgCtx.font = '14px Arial';
+            bgCtx.textAlign = 'center';
+            bgCtx.fillStyle = '#006400';
+            bgCtx.fillText('β (Birth Rate)', bgCanvas.width / 2, bgCanvas.height - 15);
+            
+            bgCtx.save();
+            bgCtx.fillStyle = '#000';
+            bgCtx.translate(15, bgCanvas.height / 2);
+            bgCtx.rotate(-Math.PI / 2);
+            bgCtx.fillText('Population (P)', 0, 0);
+            bgCtx.restore();
+        }
+
+        function updateBetaMarkers() {
+            const beta = parseFloat(betaInput.value);
+            const x = MARGIN.LEFT + (beta * PLOT.WIDTH / 4);
+            
+            markerCtx.clearRect(0, 0, markerCanvas.width, markerCanvas.height);
+            
+            markerCtx.fillStyle = '#006400';
+            
+            // Top marker
+            markerCtx.beginPath();
+            markerCtx.moveTo(x - 5, MARGIN.TOP);
+            markerCtx.lineTo(x + 5, MARGIN.TOP);
+            markerCtx.lineTo(x, MARGIN.TOP + 10);
+            markerCtx.fill();
+            
+            // Bottom marker
+            markerCtx.beginPath();
+            markerCtx.moveTo(x - 5, MARGIN.TOP + PLOT.HEIGHT);
+            markerCtx.lineTo(x + 5, MARGIN.TOP + PLOT.HEIGHT);
+            markerCtx.lineTo(x, MARGIN.TOP + PLOT.HEIGHT - 10);
+            markerCtx.fill();
+        }
+
+        function plotBifurcationPoint(beta, P) {
+            const x = Math.floor(MARGIN.LEFT + (beta * PLOT.WIDTH / 4));
+            const y = Math.floor(MARGIN.TOP + PLOT.HEIGHT - (P * PLOT.HEIGHT / 2.0));
+            
+            pointsCtx.fillStyle = '#666';
+            pointsCtx.fillRect(x - 1, y - 1, 2, 2);  // 2x2 pixel square centered at (x,y)
+        }
+
+        function plotTimeSeries(populations) {
+            timeCtxPlot.clearRect(0, 0, timePlot.width, timePlot.height);
+            timeCtxPlot.drawImage(timeBackground, 0, 0);
+            
+            timeCtxPlot.strokeStyle = '#1e88e5';
+            timeCtxPlot.fillStyle = '#1e88e5';
+
+            populations.forEach((pop, index) => {
+                const x = 50 + (index * (timePlot.width - 70) / 50);
+                const y = timePlot.height - 30 - (pop * (timePlot.height - 50) / 2);
+                
+                if (index > 0) {
+                    const prevX = 50 + ((index - 1) * (timePlot.width - 70) / 50);
+                    const prevY = timePlot.height - 30 - (populations[index - 1] * (timePlot.height - 50) / 2);
+                    timeCtxPlot.beginPath();
+                    timeCtxPlot.moveTo(prevX, prevY);
+                    timeCtxPlot.lineTo(x, y);
+                    timeCtxPlot.stroke();
+                }
+                
+                timeCtxPlot.beginPath();
+                timeCtxPlot.arc(x, y, 3, 0, 2 * Math.PI);
+                timeCtxPlot.fill();
+            });
+        }
+
+        function runSimulation() {
+            const beta = parseFloat(betaInput.value);
+            let P = parseFloat(initialPopInput.value);
+            const populations = [P];
+            
+            // First 50 iterations for time series
+            for (let i = 1; i < 50; i++) {
+                const deltaP = beta * P * (1 - P);
+                P = P + deltaP;
+                populations.push(P);
+            }
+            
+            plotTimeSeries(populations);
+            
+            // Next 150 iterations for bifurcation diagram
+            for (let i = 0; i < 150; i++) {
+                const deltaP = beta * P * (1 - P);
+                P = P + deltaP;
+                plotBifurcationPoint(beta, P);
+            }
+        }
+
+        // Event listeners
+        betaInput.addEventListener('input', updateBetaMarkers);
+        runButton.addEventListener('click', runSimulation);
+        
+        // Initial setup
+        drawTimeBackground();
+        drawBifurcationBackground();
+        updateBetaMarkers();
+        runSimulation();
+    </script>
+</body>
+</html>
