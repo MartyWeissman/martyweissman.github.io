@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yule Process Simulator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/1.5.7/pico.min.css">
+    <style>
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .input-group { margin-bottom: 0; }
+        label { margin-bottom: 0.3rem; }
+        canvas {
+            width: 100%;
+            height: auto;
+            background: white;
+            margin-top: 1rem;
+            border: 1px solid #ccc;
+        }
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Yule Process Simulator</h1>
+        <div class="input-grid">
+            <div class="input-group">
+                <label for="birth-rate">Division Probability (B%)</label>
+                <input type="number" id="birth-rate" min="0" max="100" step="0.1" value="5">
+            </div>
+            <div class="input-group">
+                <label for="death-rate">Death Probability (D%)</label>
+                <input type="number" id="death-rate" min="0" max="100" step="0.1" value="0">
+            </div>
+            <div class="input-group">
+                <label for="initial-pop">Starting Population</label>
+                <input type="number" id="initial-pop" min="1" max="1000" value="10">
+            </div>
+            <div class="input-group">
+                <label for="time-steps">Time Elapsed (T)</label>
+                <input type="number" id="time-steps" min="1" max="200" value="100">
+            </div>
+            <div class="input-group">
+                <label for="trials">Number of Trials (N)</label>
+                <input type="number" id="trials" min="1" max="50" value="20">
+            </div>
+        </div>
+        <div class="button-group">
+            <button id="simulate">Simulate!</button>
+            <button id="toggle-scale">Log-scale On/Off</button>
+        </div>
+        <canvas id="plot" width="800" height="500"></canvas>
+    </div>
+    <script>
+    class YuleSimulator {
+    constructor(birthRate, deathRate, initialPop, timeSteps) {
+        this.birthRate = birthRate;
+        this.deathRate = deathRate;
+        this.initialPop = initialPop;
+        this.timeSteps = timeSteps;
+    }
+
+    simulate() {
+        let populations = [this.initialPop];
+        let currentPop = this.initialPop;
+        const POPULATION_LIMIT = 10000;
+
+        for (let t = 1; t <= this.timeSteps; t++) {
+            // Handle deaths
+            let survivors = 0;
+            for (let i = 0; i < currentPop; i++) {
+                if (Math.random() >= this.deathRate) {
+                    survivors++;
+                }
+            }
+
+            // Handle divisions
+            let newBirths = 0;
+            for (let i = 0; i < survivors; i++) {
+                if (Math.random() < this.birthRate) {
+                    newBirths++;
+                }
+            }
+
+            currentPop = survivors + newBirths;
+
+            // Check population limit
+            if (currentPop > POPULATION_LIMIT) {
+                throw new Error("Population limit exceeded");
+            }
+
+            populations.push(currentPop);
+        }
+
+        return populations;
+    }
+}
+
+class PopulationPlotter {
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.margin = { top: 40, right: 60, bottom: 40, left: 60 };
+        this.isLogScale = false;
+    }
+
+    clear() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    toggleLogScale() {
+        this.isLogScale = !this.isLogScale;
+    }
+
+    drawGridLines(yPositions) {
+        this.ctx.strokeStyle = '#e0e0e0';
+        this.ctx.lineWidth = 1;
+
+        yPositions.forEach(y => {
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.margin.left, y);
+            this.ctx.lineTo(this.canvas.width - this.margin.right, y);
+            this.ctx.stroke();
+        });
+    }
+
+    plotTrials(allTrials) {
+        this.clear();
+
+        // Find the maximum population across all trials
+        const maxPop = Math.max(...allTrials.flat());
+        if (maxPop > 10000) {
+            return; // Don't attempt to plot if we exceeded capacity
+        }
+        const timeSteps = allTrials[0].length;
+
+        // Calculate scales
+        const xScale = (this.canvas.width - this.margin.left - this.margin.right) / (timeSteps - 1);
+        let yScale;
+
+        const plotHeight = this.canvas.height - this.margin.top - this.margin.bottom;
+        if (this.isLogScale) {
+            const maxLogPop = Math.ceil(Math.log10(maxPop));
+            yScale = plotHeight / (maxLogPop + 1); // +1 to leave room for log(1)=0
+        } else {
+            yScale = plotHeight / maxPop;
+        }
+
+        // Draw grid and axes first
+        const yPositions = this.drawAxes(timeSteps, maxPop, xScale, yScale);
+        if (this.isLogScale) {
+            this.drawGridLines(yPositions);
+        }
+
+        // Plot each trial
+        allTrials.forEach((trial, index) => {
+            const color = `hsl(${(index * 360 / allTrials.length) % 360}, 70%, 50%)`;
+            this.ctx.beginPath();
+            this.ctx.strokeStyle = color;
+            this.ctx.lineWidth = 1;
+
+            let lastValidPoint = null;
+            let hasPlottedExtinction = false;  // New flag to track if we've plotted extinction
+
+            trial.forEach((pop, t) => {
+                const x = this.margin.left + t * xScale;
+                let y;
+
+                if (pop === 0) {
+                    y = this.canvas.height - this.margin.bottom;
+                    if (!hasPlottedExtinction && lastValidPoint) {
+                        // Draw line to the extinction point
+                        this.ctx.lineTo(x, y);
+
+                        // Draw extinction marker once
+                        this.ctx.stroke();
+                        this.ctx.beginPath();
+                        this.ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                        this.ctx.fillStyle = color;
+                        this.ctx.fill();
+                        this.ctx.strokeStyle = 'black';
+                        this.ctx.stroke();
+
+                        hasPlottedExtinction = true;  // Mark that we've plotted the extinction
+                        return;  // Skip remaining points in this trial
+                    }
+                } else if (this.isLogScale) {
+                    const logPop = Math.log10(pop);
+                    y = this.canvas.height - this.margin.bottom - (logPop + 1) * yScale;
+                } else {
+                    y = this.canvas.height - this.margin.bottom - pop * yScale;
+                }
+
+                if (t === 0) {
+                    this.ctx.moveTo(x, y);
+                } else if (!hasPlottedExtinction) {  // Only continue line if not extinct
+                    this.ctx.lineTo(x, y);
+                }
+
+                if (pop > 0) {
+                    lastValidPoint = {x, y};
+                }
+            });
+
+            if (!hasPlottedExtinction) {
+                this.ctx.stroke();
+            }
+        });
+    }
+
+    drawAxes(timeSteps, maxPop, xScale, yScale) {
+        this.ctx.strokeStyle = '#000';
+        this.ctx.lineWidth = 1;
+        this.ctx.font = '12px Arial';
+
+        const yPositions = [];
+
+        // Y-axes
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.margin.left, this.margin.top);
+        this.ctx.lineTo(this.margin.left, this.canvas.height - this.margin.bottom);
+        this.ctx.moveTo(this.canvas.width - this.margin.right, this.margin.top);
+        this.ctx.lineTo(this.canvas.width - this.margin.right, this.canvas.height - this.margin.bottom);
+        this.ctx.stroke();
+
+        // Y-axis ticks and labels
+        if (this.isLogScale) {
+            const maxLogPop = Math.ceil(Math.log10(maxPop));
+
+            // Draw "-∞" and "0" at the bottom
+            this.ctx.textAlign = 'right';
+            this.ctx.fillText('-∞', this.margin.left - 8, this.canvas.height - this.margin.bottom + 4);
+            this.ctx.textAlign = 'left';
+            this.ctx.fillText('0', this.canvas.width - this.margin.right + 8, this.canvas.height - this.margin.bottom + 4);
+
+            // Draw other ticks
+            for (let i = 0; i <= maxLogPop; i++) {
+                const y = this.canvas.height - this.margin.bottom - (i + 1) * yScale;
+                yPositions.push(y);
+
+                // Left axis (log scale)
+                this.ctx.textAlign = 'right';
+                this.ctx.fillText(i, this.margin.left - 8, y + 4);
+
+                // Right axis (actual values)
+                this.ctx.textAlign = 'left';
+                this.ctx.fillText(Math.pow(10, i), this.canvas.width - this.margin.right + 8, y + 4);
+
+                // Tick marks
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.margin.left - 5, y);
+                this.ctx.lineTo(this.margin.left, y);
+                this.ctx.moveTo(this.canvas.width - this.margin.right, y);
+                this.ctx.lineTo(this.canvas.width - this.margin.right + 5, y);
+                this.ctx.stroke();
+            }
+        } else {
+            const yTicks = 10;
+            for (let i = 0; i <= yTicks; i++) {
+                const y = this.canvas.height - this.margin.bottom - (i * (this.canvas.height - this.margin.top - this.margin.bottom) / yTicks);
+                const value = Math.round(i * maxPop / yTicks);
+                yPositions.push(y);
+
+                // Left axis
+                this.ctx.textAlign = 'right';
+                this.ctx.fillText(value, this.margin.left - 8, y + 4);
+
+                // Right axis
+                this.ctx.textAlign = 'left';
+                this.ctx.fillText(value, this.canvas.width - this.margin.right + 8, y + 4);
+
+                // Tick marks
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.margin.left - 5, y);
+                this.ctx.lineTo(this.margin.left, y);
+                this.ctx.moveTo(this.canvas.width - this.margin.right, y);
+                this.ctx.lineTo(this.canvas.width - this.margin.right + 5, y);
+                this.ctx.stroke();
+            }
+        }
+
+        // X-axis
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.margin.left, this.canvas.height - this.margin.bottom);
+        this.ctx.lineTo(this.canvas.width - this.margin.right, this.canvas.height - this.margin.bottom);
+        this.ctx.stroke();
+
+        // X-axis ticks and labels
+        this.ctx.textAlign = 'center';
+        const xTicks = 10;
+        for (let i = 0; i <= xTicks; i++) {
+            const x = this.margin.left + (i * (this.canvas.width - this.margin.left - this.margin.right) / xTicks);
+            const value = Math.round(i * (timeSteps - 1) / xTicks);
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, this.canvas.height - this.margin.bottom);
+            this.ctx.lineTo(x, this.canvas.height - this.margin.bottom + 5);
+            this.ctx.stroke();
+            this.ctx.fillText(value, x, this.canvas.height - this.margin.bottom + 20);
+        }
+
+        // Axis labels
+        this.ctx.font = '14px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('Time', this.canvas.width / 2, this.canvas.height - 5);
+
+        // Left Y-axis label
+        this.ctx.save();
+        this.ctx.translate(20, this.canvas.height / 2);
+        this.ctx.rotate(-Math.PI / 2);
+        if (this.isLogScale) {
+            this.ctx.fillText('Log', 0, 0);
+            this.ctx.font = '10px Arial';
+            this.ctx.fillText('10', 25, 5);
+            this.ctx.font = '14px Arial';
+            this.ctx.fillText('(Population)', 50, 0);
+        } else {
+            this.ctx.fillText('Population', 0, 0);
+        }
+        this.ctx.restore();
+
+        // Right Y-axis label
+        this.ctx.save();
+        this.ctx.translate(this.canvas.width - 20, this.canvas.height / 2);
+        this.ctx.rotate(-Math.PI / 2);
+        this.ctx.fillText('Population', 0, 0);
+        this.ctx.restore();
+
+        return yPositions;
+    }
+}
+
+// Set up event handlers
+const simulateButton = document.getElementById('simulate');
+const toggleScaleButton = document.getElementById('toggle-scale');
+const plotter = new PopulationPlotter(document.getElementById('plot'));
+let currentTrials = [];
+
+simulateButton.addEventListener('click', () => {
+    const birthRate = parseFloat(document.getElementById('birth-rate').value) / 100;
+    const deathRate = parseFloat(document.getElementById('death-rate').value) / 100;
+    const initialPop = parseInt(document.getElementById('initial-pop').value);
+    const timeSteps = parseInt(document.getElementById('time-steps').value);
+    const trials = parseInt(document.getElementById('trials').value);
+
+    currentTrials = [];
+    try {
+        for (let i = 0; i < trials; i++) {
+            const simulator = new YuleSimulator(birthRate, deathRate, initialPop, timeSteps);
+            currentTrials.push(simulator.simulate());
+        }
+        plotter.plotTrials(currentTrials);
+    } catch (error) {
+        if (error.message === "Population limit exceeded") {
+            alert("Simulation capacity exceeded!");
+            currentTrials = [];
+            plotter.clear();  // Clear the canvas
+        } else {
+            throw error;  // Re-throw any other errors
+        }
+    }
+});
+
+toggleScaleButton.addEventListener('click', () => {
+    plotter.toggleLogScale();
+    if (currentTrials.length > 0) {
+        plotter.plotTrials(currentTrials);
+    }
+});
+
+// Initial simulation
+simulateButton.click();
+</script>
+</body>
+</html>
