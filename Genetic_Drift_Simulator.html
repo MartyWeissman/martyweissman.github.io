@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genetic Drift Simulator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/1.5.10/pico.min.css">
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin-top: 1rem;
+            max-width: 100%;
+        }
+        .percentage-display {
+            margin-top: 0.5rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <h1>Genetic Drift Simulator</h1>
+        <form id="simulator-form">
+            <div class="grid">
+                <div>
+                    <label for="population">Population (1-1000):</label>
+                    <input type="number" id="population" min="1" max="1000" value="100" required>
+                </div>
+                <div>
+                    <label for="births">Per capita births:</label>
+                    <input type="number" id="births" min="0" step="0.1" value="1" required>
+                </div>
+                <div>
+                    <label for="typeA">Type A Name:</label>
+                    <input type="text" id="typeA" maxlength="15" value="spotted" required>
+                </div>
+                <div>
+                    <label for="typeB">Type B Name:</label>
+                    <input type="text" id="typeB" maxlength="15" value="not spotted" required>
+                </div>
+                <div>
+                    <label for="percentageA">Percentage Type A:</label>
+                    <input type="number" id="percentageA" min="0" max="100" value="30" required>
+                </div>
+                <div>
+                    <label>Percentage Type B:</label>
+                    <div class="percentage-display" id="percentageB">70%</div>
+                </div>
+            </div>
+            <button type="submit">Simulate!</button>
+        </form>
+        <canvas id="plot" width="800" height="500"></canvas>
+    </main>
+
+    <script>
+        document.getElementById('percentageA').addEventListener('input', function(e) {
+            const percentageB = 100 - parseFloat(e.target.value);
+            document.getElementById('percentageB').textContent = percentageB + '%';
+        });
+
+        function drawPlot(canvas, data, typeAName, typeBName) {
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const margin = { top: 40, right: 100, bottom: 80, left: 100 };
+            const plotWidth = 600;
+            const plotHeight = height - margin.top - margin.bottom;
+
+            const barWidth = 2;
+            const population = data[0].typeA + data[0].typeB;
+            const scale = plotHeight / population;
+
+            // Plot title
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#000000';
+            ctx.fillText('Frequency of types', margin.left + plotWidth/2, margin.top - 10);
+
+            // Draw bars
+            data.forEach((d, i) => {
+                const x = margin.left + i * barWidth;
+                const typeAHeight = d.typeA * scale;
+                const typeBHeight = d.typeB * scale;
+
+                ctx.fillStyle = '#2E5894';
+                ctx.fillRect(x, height - margin.bottom - typeAHeight, barWidth, typeAHeight);
+
+                ctx.fillStyle = '#BC4B13';
+                ctx.fillRect(x, height - margin.bottom - typeAHeight - typeBHeight, barWidth, typeBHeight);
+            });
+
+            // Draw time axis
+            ctx.strokeStyle = '#000000';
+            ctx.beginPath();
+            ctx.moveTo(margin.left, height - margin.bottom);
+            ctx.lineTo(margin.left + plotWidth, height - margin.bottom);
+            ctx.stroke();
+
+            // Time axis labels
+            ctx.fillStyle = '#000000';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            [0, 50, 100, 150, 200, 250, 300].forEach(time => {
+                const x = margin.left + (time * plotWidth / 300);
+                ctx.beginPath();
+                ctx.moveTo(x, height - margin.bottom);
+                ctx.lineTo(x, height - margin.bottom + 5);
+                ctx.stroke();
+                ctx.fillText(time, x, height - margin.bottom + 20);
+            });
+
+            // Time axis label
+            ctx.fillText('Generations', margin.left + plotWidth/2, height - margin.bottom + 40);
+
+            // Population labels - left side
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(`${data[0].typeA} ${typeAName}`, margin.left - 5, height - margin.bottom - (data[0].typeA * scale / 2));
+            ctx.fillText(`${data[0].typeB} ${typeBName}`, margin.left - 5, height - margin.bottom - data[0].typeA * scale - (data[0].typeB * scale / 2));
+
+            // Population labels - right side
+            const last = data[data.length - 1];
+            ctx.textAlign = 'left';
+            ctx.fillText(`${last.typeA} ${typeAName}`, margin.left + plotWidth + 5, height - margin.bottom - (last.typeA * scale / 2));
+            ctx.fillText(`${last.typeB} ${typeBName}`, margin.left + plotWidth + 5, height - margin.bottom - last.typeA * scale - (last.typeB * scale / 2));
+
+            // Legend at bottom
+            ctx.textAlign = 'left';
+            let legendX = margin.left + (plotWidth - 200) / 2; // Center the legend
+            const legendY = height - margin.bottom + 50;
+
+            ctx.fillStyle = '#2E5894';
+            ctx.fillRect(legendX, legendY, 20, 20);
+            ctx.fillStyle = '#000000';
+            ctx.fillText(typeAName, legendX + 25, legendY + 15);
+
+            legendX += ctx.measureText(typeAName).width + 45;
+            ctx.fillStyle = '#BC4B13';
+            ctx.fillRect(legendX, legendY, 20, 20);
+            ctx.fillStyle = '#000000';
+            ctx.fillText(typeBName, legendX + 25, legendY + 15);
+        }
+
+        document.getElementById('simulator-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const population = parseInt(document.getElementById('population').value);
+            const typeAName = document.getElementById('typeA').value;
+            const typeBName = document.getElementById('typeB').value;
+            const percentageA = parseFloat(document.getElementById('percentageA').value);
+            const births = parseFloat(document.getElementById('births').value);
+
+            let data = [];
+            let typeACount = Math.round(population * (percentageA / 100));
+            let typeBCount = population - typeACount;
+
+            data.push({ typeA: typeACount, typeB: typeBCount });
+
+            for (let gen = 0; gen < 300; gen++) {
+                let newTypeACount = Math.round(typeACount * (1 + births));
+                let newTypeBCount = Math.round(typeBCount * (1 + births));
+
+                let pool = Array(newTypeACount + newTypeBCount).fill(0)
+                    .map((_, i) => i < newTypeACount ? 'A' : 'B');
+
+                for (let i = pool.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [pool[i], pool[j]] = [pool[j], pool[i]];
+                }
+
+                let survivors = pool.slice(0, population);
+                typeACount = survivors.filter(type => type === 'A').length;
+                typeBCount = survivors.filter(type => type === 'B').length;
+
+                data.push({ typeA: typeACount, typeB: typeBCount });
+            }
+
+            const canvas = document.getElementById('plot');
+            drawPlot(canvas, data, typeAName, typeBName);
+        });
+    </script>
+</body>
+</html>
