@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- Head section remains the same -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atmospheric Random Walk Simulator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/1.5.10/pico.min.css">
+    <style>
+        /* ... Previous CSS remains the same ... */
+        .simulation-area {
+            width: 900px;
+            margin: 20px auto;
+            position: relative;
+        }
+        .simulation-container {
+            width: 600px;
+            height: 400px;
+            border: 1px solid #ccc;
+            position: relative;
+            background: #f0f8ff;
+            float: left;
+        }
+        .histogram {
+            width: 200px;
+            height: 400px;
+            position: relative;
+            float: left;
+            margin-left: 10px;
+        }
+        .histogram-bar {
+            position: absolute;
+            height: 10px;
+            background: darkblue;
+            left: 0;
+            transition: width 0.1s linear;
+        }
+        .histogram-count {
+            position: absolute;
+            left: 160px;
+            font-size: 12px;
+            line-height: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .density-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            font-size: 12px;
+        }
+        .particle {
+            width: 4px;
+            height: 4px;
+            background: darkblue;
+            position: absolute;
+            border-radius: 50%;
+            transition: top 0.1s linear;
+        }
+        .ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 20px;
+            background: darkgreen;
+        }
+        .clearfix::after {
+            content: "";
+            clear: both;
+            display: table;
+        }
+    </style>
+</head>
+<body>
+    <!-- HTML remains exactly the same -->
+    <main class="container">
+        <h1>Atmospheric Molecule Simulator</h1>
+
+        <div class="grid">
+            <div>
+                <label for="gravity">
+                    Gravity (-10 m/s on Earth): <span id="gravityValue">-10</span>
+                </label>
+                <input type="range" id="gravity" min="-20" max="0" value="-10" step="1">
+            </div>
+
+            <div>
+                <label for="temperature">
+                    Temperature (300°K is about 80°F): <span id="tempValue">300</span>
+                </label>
+                <input type="range" id="temperature" min="200" max="400" value="300" step="1">
+            </div>
+        </div>
+
+        <div class="grid">
+            <button id="simulate">Simulate!</button>
+            <button id="reset">Reset</button>
+        </div>
+
+        <div class="simulation-area clearfix">
+            <div class="simulation-container" id="simContainer">
+                <div class="ground"></div>
+            </div>
+            <div class="histogram" id="histogram">
+                <div class="density-label">density</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const NUM_PARTICLES = 100;
+        const BIN_SIZE = 5;
+        const MAX_HEIGHT = 100;
+        const NUM_BINS = Math.ceil(MAX_HEIGHT / BIN_SIZE);
+        const PIXELS_PER_UNIT = 2;
+
+        // TypedArrays for particle data
+        let particleHeights = new Float32Array(NUM_PARTICLES);
+        let particleElements = new Array(NUM_PARTICLES);
+        let isSimulating = false;
+        let animationId;
+
+        const container = document.getElementById('simContainer');
+        const histogram = document.getElementById('histogram');
+        const simulateBtn = document.getElementById('simulate');
+        const resetBtn = document.getElementById('reset');
+        const gravityInput = document.getElementById('gravity');
+        const tempInput = document.getElementById('temperature');
+        const gravityValue = document.getElementById('gravityValue');
+        const tempValue = document.getElementById('tempValue');
+
+        // Pre-allocate arrays for normal distribution
+        const normalCache = new Float32Array(1000);
+        let normalIndex = 0;
+
+        function generateNormalDistribution() {
+            for(let i = 0; i < 1000; i += 2) {
+                const u1 = Math.random();
+                const u2 = Math.random();
+                const r = Math.sqrt(-2.0 * Math.log(u1));
+                const theta = 2.0 * Math.PI * u2;
+                normalCache[i] = r * Math.cos(theta);
+                normalCache[i + 1] = r * Math.sin(theta);
+            }
+            normalIndex = 0;
+        }
+
+        function getNormalValue() {
+            if (normalIndex >= 1000) {
+                generateNormalDistribution();
+            }
+            const g = parseFloat(gravityInput.value);
+            const t = parseFloat(tempInput.value);
+            return (g/200) + Math.sqrt(t/300) * normalCache[normalIndex++];
+        }
+
+        function heightToPixels(height) {
+            return container.offsetHeight - (height * PIXELS_PER_UNIT + 20);
+        }
+
+        gravityInput.addEventListener('input', () => {
+            gravityValue.textContent = gravityInput.value;
+        });
+
+        tempInput.addEventListener('input', () => {
+            tempValue.textContent = tempInput.value;
+        });
+
+        function createHistogram() {
+            histogram.innerHTML = '<div class="density-label">density</div>';
+            for (let i = 0; i < NUM_BINS; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'histogram-bar';
+                bar.style.bottom = `${(i * 10) + 20}px`;
+                bar.style.width = '0px';
+
+                const count = document.createElement('div');
+                count.className = 'histogram-count';
+                count.style.bottom = `${(i * 10) + 20}px`;
+
+                histogram.appendChild(bar);
+                histogram.appendChild(count);
+            }
+        }
+
+        function updateHistogram(showCounts = false) {
+            const bins = new Int32Array(NUM_BINS);
+
+            // Count particles in bins using TypedArray
+            for (let i = 0; i < NUM_PARTICLES; i++) {
+                const binIndex = Math.floor(particleHeights[i] / BIN_SIZE);
+                if (binIndex >= 0 && binIndex < NUM_BINS) {
+                    bins[binIndex]++;
+                }
+            }
+
+            const bars = histogram.getElementsByClassName('histogram-bar');
+            const counts = histogram.getElementsByClassName('histogram-count');
+
+            for (let i = 0; i < NUM_BINS; i++) {
+                const count = bins[i];
+                const density = count / NUM_PARTICLES;
+                const width = density * 150;
+
+                const bar = bars[i];
+                bar.style.width = `${width}px`;
+
+                const blue = Math.floor(255 - (density * 155));
+                bar.style.background = `rgb(${blue},${blue},255)`;
+
+                const countElement = counts[i];
+                countElement.textContent = count;
+                countElement.style.opacity = showCounts ? '1' : '0';
+            }
+        }
+
+        function initializeParticles() {
+            // Clear existing particles
+            particleElements.forEach(el => el?.remove());
+
+            // Initialize heights and create elements
+            for (let i = 0; i < NUM_PARTICLES; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+
+                const x = (i / NUM_PARTICLES) * container.offsetWidth;
+                const epsilon = (Math.random() * 2 - 1);
+                particleHeights[i] = 7.5 + epsilon;
+
+                particle.style.left = `${x}px`;
+                particle.style.top = `${heightToPixels(particleHeights[i])}px`;
+
+                container.appendChild(particle);
+                particleElements[i] = particle;
+            }
+
+            createHistogram();
+            updateHistogram(false);
+            generateNormalDistribution();
+        }
+
+        function updateParticles() {
+            for (let i = 0; i < NUM_PARTICLES; i++) {
+                particleHeights[i] += getNormalValue();
+                if (particleHeights[i] < 0) {
+                    particleHeights[i] = -particleHeights[i];
+                }
+                particleElements[i].style.top = `${heightToPixels(particleHeights[i])}px`;
+            }
+        }
+
+        function animate() {
+            if (!isSimulating) return;
+
+            updateParticles();
+            updateHistogram(false);
+            animationId = requestAnimationFrame(animate);
+        }
+
+        simulateBtn.addEventListener('click', () => {
+            if (!isSimulating) {
+                isSimulating = true;
+                simulateBtn.textContent = 'Stop';
+                animate();
+            } else {
+                isSimulating = false;
+                simulateBtn.textContent = 'Simulate!';
+                cancelAnimationFrame(animationId);
+                updateHistogram(true);
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            isSimulating = false;
+            simulateBtn.textContent = 'Simulate!';
+            cancelAnimationFrame(animationId);
+            initializeParticles();
+        });
+
+        initializeParticles();
+    </script>
+</body>
+</html>
