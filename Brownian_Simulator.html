@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brownian Motion Simulator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/1.5.10/pico.min.css">
+    <style>
+        .main-container {
+            width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .simulator-row {
+            display: flex;
+            gap: 100px;
+            margin-bottom: 2rem;
+        }
+
+        canvas {
+            border: 1px solid #ccc;
+            background: #000;
+        }
+
+        .controls {
+            width: 300px;
+        }
+
+        .controls label {
+            display: block;
+            margin-bottom: 1rem;
+        }
+
+        .controls button {
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        #timer {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+
+        .data-table {
+            width: 100%;
+            font-size: 0.85rem;
+        }
+
+        .data-table table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .data-table th:first-child {
+            width: 120px;
+            font-weight: bold;
+            text-align: left;
+            padding: 0.3rem;
+            border: 1px solid #ccc;
+            background: #f5f5f5;
+        }
+
+        .data-table td {
+            text-align: right;
+            padding: 0.3rem;
+            border: 1px solid #ccc;
+        }
+
+        .data-table tr:first-child {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <h1>Brownian Motion Simulator</h1>
+        <div class="simulator-row">
+            <div>
+                <canvas id="viewport" width="600" height="600"></canvas>
+            </div>
+            <div class="controls">
+                <label>Particle radius (microns)
+                    <input type="number" id="diameter" value="0.5" min="0.1" step="0.1">
+                </label>
+                <label>Viscosity (centiPoise)
+                    <input type="number" id="viscosity" value="1" min="0.1" step="0.1">
+                </label>
+                <label>Temperature (Celsius)
+                    <input type="number" id="temperature" value="20" step="1">
+                </label>
+                <button id="toggleBtn">Diffuse!</button>
+                <button id="getDataBtn">Get Data!</button>
+                <div id="timer">Time: 0.0 sec</div>
+            </div>
+        </div>
+        <div id="dataContainer" class="data-table"></div>
+    </div>
+
+    <script>
+        const PIXELS_PER_MICRON = 20;
+        const VIEWPORT_SIZE = 600;
+        const GRID_SPACING = 100;
+        const TIME_STEP = 0.1;
+        const DELAY = 50;
+        const k = 1.380649e-23;
+
+        let position = { x: 0, y: 0 };
+        let trajectory = [];
+        let timePoints = [];
+        let isSimulating = false;
+        let timeoutId = null;
+        let simulationTime = 0;
+
+        const canvas = document.getElementById('viewport');
+        const ctx = canvas.getContext('2d');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const getDataBtn = document.getElementById('getDataBtn');
+        const timerDisplay = document.getElementById('timer');
+        const dataContainer = document.getElementById('dataContainer');
+
+        function calculateD() {
+            const radius = Number(document.getElementById('diameter').value);
+            const viscosity = Number(document.getElementById('viscosity').value);
+            const temperature = Number(document.getElementById('temperature').value);
+
+            const radiusM = radius * 1e-6;
+            const T = temperature + 273.15;
+            const eta = viscosity * 1e-3;
+            return (k * T) / (6 * Math.PI * eta * radiusM);
+        }
+
+        function calculateStep() {
+            const D = calculateD();
+            const variance = 2 * D * TIME_STEP;
+            const stdDev = Math.sqrt(variance);
+            return stdDev * 1e6;
+        }
+
+        function updateParticle() {
+            if (!isSimulating) return;
+
+            simulationTime += TIME_STEP;
+            timerDisplay.textContent = `Time: ${simulationTime.toFixed(1)} sec`;
+
+            const stepSize = calculateStep();
+            const angle = Math.random() * 2 * Math.PI;
+
+            position.x += stepSize * Math.cos(angle);
+            position.y += stepSize * Math.sin(angle);
+
+            trajectory.push({...position});
+            if (simulationTime <= 10) {
+                timePoints.push({
+                    t: simulationTime,
+                    x: position.x,
+                    y: position.y,
+                    r2: position.x * position.x + position.y * position.y
+                });
+            }
+
+            draw();
+            timeoutId = setTimeout(updateParticle, DELAY);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, VIEWPORT_SIZE, VIEWPORT_SIZE);
+
+            // Draw background and scale marker
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, VIEWPORT_SIZE, VIEWPORT_SIZE);
+
+            // Draw scale bar
+            ctx.strokeStyle = '#fff';
+            ctx.fillStyle = '#fff';
+            ctx.lineWidth = 2;
+
+            const scaleX = 50;
+            const scaleY = 50;
+            const scaleWidth = 100;
+
+            ctx.beginPath();
+            ctx.moveTo(0, scaleY);
+            ctx.lineTo(scaleWidth, scaleY);
+            ctx.stroke();
+
+            // Arrowheads
+            ctx.beginPath();
+            ctx.moveTo(5, scaleY - 5);
+            ctx.lineTo(5, scaleY + 5);
+            ctx.lineTo(0, scaleY);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(scaleWidth-5, scaleY - 5);
+            ctx.lineTo(scaleWidth-5, scaleY + 5);
+            ctx.lineTo(scaleWidth, scaleY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Scale text
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('5 μm', scaleWidth/2, scaleY - 10);
+
+            // Circular microscope view
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(VIEWPORT_SIZE/2, VIEWPORT_SIZE/2, VIEWPORT_SIZE/2, 0, 2 * Math.PI);
+            ctx.clip();
+
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, VIEWPORT_SIZE, VIEWPORT_SIZE);
+
+            // Grid
+            ctx.strokeStyle = '#dddddd';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= VIEWPORT_SIZE; i += GRID_SPACING) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, VIEWPORT_SIZE);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(VIEWPORT_SIZE, i);
+                ctx.stroke();
+            }
+
+            // Trajectory
+            if (trajectory.length > 1) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#666666';
+                ctx.lineWidth = 1;
+                trajectory.forEach((pos, i) => {
+                    const screenX = VIEWPORT_SIZE/2 + pos.x * PIXELS_PER_MICRON;
+                    const screenY = VIEWPORT_SIZE/2 - pos.y * PIXELS_PER_MICRON;
+                    if (i === 0) ctx.moveTo(screenX, screenY);
+                    else ctx.lineTo(screenX, screenY);
+                });
+                ctx.stroke();
+            }
+
+            // Particle
+            const radius = Number(document.getElementById('diameter').value);
+            const particleX = VIEWPORT_SIZE/2 + position.x * PIXELS_PER_MICRON;
+            const particleY = VIEWPORT_SIZE/2 - position.y * PIXELS_PER_MICRON;
+            ctx.beginPath();
+            ctx.fillStyle = '#d05325';
+            ctx.arc(particleX, particleY, radius * PIXELS_PER_MICRON, 0, 2 * Math.PI);
+            ctx.fill();
+
+            ctx.restore();
+
+            // Border
+            ctx.beginPath();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.arc(VIEWPORT_SIZE/2, VIEWPORT_SIZE/2, VIEWPORT_SIZE/2, 0, 2 * Math.PI);
+            ctx.stroke();
+        }
+
+        function displayData() {
+            const table = document.createElement('table');
+            const metrics = ['Time', 'x (μm)', 'y (μm)', 'x² + y² (μm²)'];
+            const times = Array.from({length: 11}, (_, i) => i);
+
+            metrics.forEach((metric, i) => {
+                const row = document.createElement('tr');
+                const th = document.createElement('th');
+                th.textContent = metric;
+                row.appendChild(th);
+
+                times.forEach(t => {
+                    const td = document.createElement('td');
+                    const point = timePoints.find(p => Math.abs(p.t - t) < 0.05);
+                    if (point) {
+                        const value = i === 0 ? Math.round(point.t) :
+                                    i === 1 ? point.x :
+                                    i === 2 ? point.y :
+                                    point.r2;
+                        td.textContent = value.toFixed(2);
+                    }
+                    row.appendChild(td);
+                });
+                table.appendChild(row);
+            });
+
+            dataContainer.innerHTML = '';
+            dataContainer.appendChild(table);
+        }
+
+        function toggleSimulation() {
+            isSimulating = !isSimulating;
+            if (isSimulating) {
+                position = { x: 0, y: 0 };
+                trajectory = [{ x: 0, y: 0 }];
+                timePoints = [{t: 0, x: 0, y: 0, r2: 0}];
+                simulationTime = 0;
+                toggleBtn.textContent = 'Stop!';
+                updateParticle();
+            } else {
+                toggleBtn.textContent = 'Diffuse!';
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+            }
+        }
+
+        toggleBtn.addEventListener('click', toggleSimulation);
+        getDataBtn.addEventListener('click', displayData);
+        draw();
+    </script>
+</body>
+</html>
