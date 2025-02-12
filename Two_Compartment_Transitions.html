@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two Compartment Markov Model</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/1.5.10/pico.min.css">
+    <style>
+        .container {
+            width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        canvas {
+            margin: 20px 0;
+            background: #f8f9fa;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        #simulate {
+            background-color: #2ecc71;
+        }
+        #reset {
+            background-color: #95a5a6;
+        }
+        .input-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Two Compartment Markov Model</h1>
+
+        <div class="input-grid">
+            <label>
+                Compartment A Name:
+                <input type="text" id="nameA" value="Compartment A">
+            </label>
+            <label>
+                Compartment B Name:
+                <input type="text" id="nameB" value="Compartment B">
+            </label>
+            <label>
+                Starting A population:
+                <input type="number" id="startA" value="500" min="0">
+            </label>
+            <label>
+                Starting B population:
+                <input type="number" id="startB" value="0" min="0">
+            </label>
+            <label>
+                Transition probability from A to B:
+                <input type="number" id="probAB" value="0.1" min="0" max="1" step="0.1">
+            </label>
+            <label>
+                Transition probability from B to A:
+                <input type="number" id="probBA" value="0.05" min="0" max="1" step="0.1">
+            </label>
+        </div>
+
+        <div class="button-group">
+            <button id="simulate">Simulate!</button>
+            <button id="reset">Reset</button>
+        </div>
+
+        <canvas id="compartmentCanvas" width="700" height="400"></canvas>
+        <canvas id="timeSeriesCanvas" width="700" height="200"></canvas>
+    </div>
+
+    <script>
+    class Vector2D {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    static add(v1, v2) { return new Vector2D(v1.x + v2.x, v1.y + v2.y); }
+    static sub(v1, v2) { return new Vector2D(v1.x - v2.x, v1.y - v2.y); }
+    static mult(v, s) { return new Vector2D(v.x * s, v.y * s); }
+    static random() { return new Vector2D(Math.random() - 0.5, Math.random() - 0.5); }
+}
+
+class Particle {
+    constructor(x, y, compartment) {
+        this.pos = new Vector2D(x, y);
+        this.vel = Vector2D.mult(Vector2D.random(), 4);
+        this.radius = 3;
+        this.compartment = compartment;
+        this.transitioning = false;
+        this.transitionProgress = 0;
+        this.transitionPoints = [];
+    }
+
+    startTransition(points) {
+        this.transitioning = true;
+        this.transitionProgress = 0;
+        this.transitionPoints = points;
+    }
+
+    update(bounds) {
+        if (this.transitioning) {
+            this.transitionProgress += 0.05;
+            if (this.transitionProgress >= 1) {
+                this.transitioning = false;
+                this.pos = this.transitionPoints[3];  // Set to tunnel exit point
+                this.vel = new Vector2D(
+                    (Math.random() - 0.5) * 4,
+                    (Math.random() - 0.5) * 4
+                );
+                return;
+            }
+
+            const t = this.transitionProgress;
+            const p = this.transitionPoints;
+
+            // Cubic Bézier curve interpolation to tunnel entrance
+            const t1 = (1 - t) * (1 - t) * (1 - t);
+            const t2 = 3 * t * (1 - t) * (1 - t);
+            const t3 = 3 * t * t * (1 - t);
+            const t4 = t * t * t;
+
+            this.pos = new Vector2D(
+                t1 * p[0].x + t2 * p[1].x + t3 * p[2].x + t4 * p[3].x,
+                t1 * p[0].y + t2 * p[1].y + t3 * p[2].y + t4 * p[3].y
+            );
+            return;
+        }
+
+        this.pos = Vector2D.add(this.pos, this.vel);
+
+        if (this.pos.x - this.radius < bounds.x) {
+            this.pos.x = bounds.x + this.radius;
+            this.vel.x = Math.abs(this.vel.x);
+        }
+        if (this.pos.x + this.radius > bounds.x + bounds.width) {
+            this.pos.x = bounds.x + bounds.width - this.radius;
+            this.vel.x = -Math.abs(this.vel.x);
+        }
+        if (this.pos.y - this.radius < bounds.y) {
+            this.pos.y = bounds.y + this.radius;
+            this.vel.y = Math.abs(this.vel.y);
+        }
+        if (this.pos.y + this.radius > bounds.y + bounds.height) {
+            this.pos.y = bounds.y + bounds.height - this.radius;
+            this.vel.y = -Math.abs(this.vel.y);
+        }
+
+        this.vel = Vector2D.add(this.vel, Vector2D.mult(Vector2D.random(), 0.5));
+
+        const speed = Math.sqrt(this.vel.x * this.vel.x + this.vel.y * this.vel.y);
+        if (speed > 5) {
+            this.vel = Vector2D.mult(this.vel, 5/speed);
+        }
+    }
+}
+class MarkovSimulation {
+    constructor() {
+        this.compCanvas = document.getElementById('compartmentCanvas');
+        this.compCtx = this.compCanvas.getContext('2d');
+        this.timeCanvas = document.getElementById('timeSeriesCanvas');
+        this.timeCtx = this.timeCanvas.getContext('2d');
+
+        this.particles = [];
+        this.animationId = null;
+        this.timeStep = 0;
+        this.history = { A: [], B: [] };
+
+        const margin = 50;
+        this.compartmentA = { x: margin, y: margin, width: 250, height: 300 };
+        this.compartmentB = { x: 400, y: margin, width: 250, height: 300 };
+
+        this.tunnelWidth = 150;
+        this.tunnelHeight = 40;
+
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        document.getElementById('simulate').addEventListener('click', () => this.start());
+        document.getElementById('reset').addEventListener('click', () => this.reset());
+    }
+
+    createParticles() {
+        this.particles = [];
+        const popA = parseInt(document.getElementById('startA').value);
+        const popB = parseInt(document.getElementById('startB').value);
+
+        for (let i = 0; i < popA; i++) {
+            this.particles.push(new Particle(
+                this.compartmentA.x + Math.random() * this.compartmentA.width,
+                this.compartmentA.y + Math.random() * this.compartmentA.height,
+                'A'
+            ));
+        }
+
+        for (let i = 0; i < popB; i++) {
+            this.particles.push(new Particle(
+                this.compartmentB.x + Math.random() * this.compartmentB.width,
+                this.compartmentB.y + Math.random() * this.compartmentB.height,
+                'B'
+            ));
+        }
+    }
+
+    calculateTransitionPath(particle, isAtoB) {
+        const startX = particle.pos.x;
+        const startY = particle.pos.y;
+
+        const centerY = this.compartmentA.y + this.compartmentA.height / 2;
+        const tunnelY = isAtoB ? centerY - 80 : centerY + 80;
+
+        // First control point - adjust path to tunnel entrance
+        const controlPoint1 = new Vector2D(
+            startX + (isAtoB ? 1 : -1) * 50,
+            startY
+        );
+
+        // Tunnel entrance/exit
+        const tunnelStart = new Vector2D(
+            isAtoB ? this.compartmentA.x + this.compartmentA.width : this.compartmentB.x,
+            tunnelY
+        );
+
+        // End point at tunnel exit
+        const endX = isAtoB ?
+            this.compartmentB.x + 20 :
+            this.compartmentA.x + this.compartmentA.width - 20;
+
+        const endY = tunnelY + (Math.random() - 0.5) * this.tunnelHeight/2;
+
+        return [
+            new Vector2D(startX, startY),     // Start point
+            controlPoint1,                     // Control point to tunnel
+            tunnelStart,                      // Tunnel entrance
+            new Vector2D(endX, endY)          // Tunnel exit point
+        ];
+    }
+
+    drawCompartments() {
+        const ctx = this.compCtx;
+        const radius = 20;
+
+        // Draw compartment A
+        ctx.beginPath();
+        ctx.roundRect(
+            this.compartmentA.x, this.compartmentA.y,
+            this.compartmentA.width, this.compartmentA.height,
+            radius
+        );
+        ctx.fillStyle = 'rgba(255, 99, 132, 0.1)';
+        ctx.fill();
+        ctx.strokeStyle = 'black';
+        ctx.stroke();
+
+        // Draw compartment B
+        ctx.beginPath();
+        ctx.roundRect(
+            this.compartmentB.x, this.compartmentB.y,
+            this.compartmentB.width, this.compartmentB.height,
+            radius
+        );
+        ctx.fillStyle = 'rgba(54, 162, 235, 0.1)';
+        ctx.fill();
+        ctx.strokeStyle = 'black';
+        ctx.stroke();
+
+        const centerY = this.compartmentA.y + this.compartmentA.height / 2;
+        const topY = centerY - 80;
+        const bottomY = centerY + 80;
+
+        // Top tunnel (A to B)
+        const topGrad = ctx.createLinearGradient(
+            this.compartmentA.x + this.compartmentA.width - 20,
+            topY,
+            this.compartmentB.x + 20,
+            topY
+        );
+        topGrad.addColorStop(0, 'rgba(255, 99, 132, 0.2)');
+        topGrad.addColorStop(1, 'rgba(54, 162, 235, 0.2)');
+
+        ctx.beginPath();
+        ctx.fillStyle = topGrad;
+        ctx.fillRect(
+            this.compartmentA.x + this.compartmentA.width - 20,
+            topY - this.tunnelHeight/2,
+            this.tunnelWidth + 40,
+            this.tunnelHeight
+        );
+
+        // Bottom tunnel (B to A)
+        const bottomGrad = ctx.createLinearGradient(
+            this.compartmentB.x + 20,
+            bottomY,
+            this.compartmentA.x + this.compartmentA.width - 20,
+            bottomY
+        );
+        bottomGrad.addColorStop(0, 'rgba(54, 162, 235, 0.2)');
+        bottomGrad.addColorStop(1, 'rgba(255, 99, 132, 0.2)');
+
+        ctx.beginPath();
+        ctx.fillStyle = bottomGrad;
+        ctx.fillRect(
+            this.compartmentB.x - this.tunnelWidth - 20,
+            bottomY - this.tunnelHeight/2,
+            this.tunnelWidth + 40,
+            this.tunnelHeight
+        );
+
+        // Draw labels
+        ctx.font = '16px Arial';
+        ctx.fillStyle = 'black';
+        ctx.textAlign = 'center';
+
+        const popA = this.particles.filter(p => p.compartment === 'A').length;
+        const popB = this.particles.filter(p => p.compartment === 'B').length;
+
+        const nameA = document.getElementById('nameA').value;
+        const nameB = document.getElementById('nameB').value;
+
+        ctx.fillText(
+            `${nameA}: ${popA}`,
+            this.compartmentA.x + this.compartmentA.width/2,
+            this.compartmentA.y - 10
+        );
+        ctx.fillText(
+            `${nameB}: ${popB}`,
+            this.compartmentB.x + this.compartmentB.width/2,
+            this.compartmentB.y - 10
+        );
+
+        if (this.timeStep % 10 === 0) {
+            this.history.A.push(popA);
+            this.history.B.push(popB);
+            if (this.history.A.length > 100) {
+                this.history.A.shift();
+                this.history.B.shift();
+            }
+        }
+    }
+
+    drawTimeSeries() {
+        const ctx = this.timeCtx;
+        ctx.clearRect(0, 0, this.timeCanvas.width, this.timeCanvas.height);
+
+        const padding = 30;
+        const graphWidth = this.timeCanvas.width - 2 * padding;
+        const graphHeight = this.timeCanvas.height - 2 * padding;
+
+        // Draw axes
+        ctx.beginPath();
+        ctx.strokeStyle = '#666';
+        ctx.moveTo(padding, padding);
+        ctx.lineTo(padding, this.timeCanvas.height - padding);
+        ctx.lineTo(this.timeCanvas.width - padding, this.timeCanvas.height - padding);
+        ctx.stroke();
+
+        const maxPop = Math.max(
+            ...this.history.A,
+            ...this.history.B,
+            parseInt(document.getElementById('startA').value),
+            parseInt(document.getElementById('startB').value)
+        );
+
+        // Y-axis grid and labels
+        ctx.strokeStyle = '#ddd';
+        ctx.fillStyle = '#666';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'right';
+
+        for (let i = 0; i <= 5; i++) {
+            const y = padding + (graphHeight * i / 5);
+            const value = Math.round(maxPop * (1 - i / 5));
+
+            ctx.beginPath();
+            ctx.moveTo(padding, y);
+            ctx.lineTo(this.timeCanvas.width - padding, y);
+            ctx.stroke();
+
+            ctx.fillText(value, padding - 5, y + 4);
+        }
+
+        const drawCurve = (data, color) => {
+            if (data.length < 2) return;
+
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+
+            data.forEach((pop, i) => {
+                const x = padding + (i / (data.length - 1)) * graphWidth;
+                const y = padding + graphHeight * (1 - pop / maxPop);
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+        };
+
+        drawCurve(this.history.A, 'rgba(255, 99, 132, 0.8)');
+        drawCurve(this.history.B, 'rgba(54, 162, 235, 0.8)');
+
+        // Draw legend
+        const legendX = this.timeCanvas.width - padding - 100;
+        const legendY = padding + 20;
+
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'left';
+
+        ctx.fillStyle = 'rgba(255, 99, 132, 0.8)';
+        ctx.fillRect(legendX, legendY - 10, 20, 4);
+        ctx.fillStyle = '#666';
+        ctx.fillText(document.getElementById('nameA').value, legendX + 30, legendY);
+
+        ctx.fillStyle = 'rgba(54, 162, 235, 0.8)';
+        ctx.fillRect(legendX, legendY + 10, 20, 4);
+        ctx.fillStyle = '#666';
+        ctx.fillText(document.getElementById('nameB').value, legendX + 30, legendY + 20);
+    }
+
+    updateParticles() {
+        const probAB = parseFloat(document.getElementById('probAB').value);
+        const probBA = parseFloat(document.getElementById('probBA').value);
+
+        this.particles.forEach(particle => {
+            if (!particle.transitioning) {
+                if (particle.compartment === 'A' && Math.random() < probAB / 20) {
+                    particle.startTransition(this.calculateTransitionPath(particle, true));
+                    particle.compartment = 'B';
+                } else if (particle.compartment === 'B' && Math.random() < probBA / 20) {
+                    particle.startTransition(this.calculateTransitionPath(particle, false));
+                    particle.compartment = 'A';
+                }
+
+                particle.update(
+                    particle.compartment === 'A' ? this.compartmentA : this.compartmentB
+                );
+            } else {
+                particle.update();
+            }
+        });
+    }
+
+    draw() {
+        this.compCtx.clearRect(0, 0, this.compCanvas.width, this.compCanvas.height);
+        this.drawCompartments();
+
+        // Draw all particles
+        const ctx = this.compCtx;
+        this.particles.forEach(particle => {
+            ctx.beginPath();
+            ctx.arc(particle.pos.x, particle.pos.y, particle.radius, 0, Math.PI * 2);
+            ctx.fillStyle = particle.transitioning ?
+                'rgba(0, 100, 0, 0.6)' : 'rgba(0, 100, 0, 0.4)';
+            ctx.fill();
+        });
+
+        this.drawTimeSeries();
+        this.timeStep++;
+    }
+
+    animate() {
+        this.updateParticles();
+        this.draw();
+        setTimeout(() => {
+            this.animationId = requestAnimationFrame(() => this.animate());
+        }, 30);
+    }
+
+    start() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+        this.timeStep = 0;
+        this.history = { A: [], B: [] };
+        this.createParticles();
+        this.animate();
+    }
+
+    reset() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+        this.particles = [];
+        this.timeStep = 0;
+        this.history = { A: [], B: [] };
+        this.draw();
+    }
+}
+
+// Initialize simulation
+const simulation = new MarkovSimulation();
+simulation.draw();
+</script>
+</body>
+</html>
