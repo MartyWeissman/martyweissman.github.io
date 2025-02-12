@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ion Channel Simulator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/1.5.10/pico.min.css">
+    <style>
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin: 20px 0;
+        }
+        .input-group {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .input-container {
+            flex: 1;
+        }
+        #simulateBtn {
+            background-color: #2ecc71;
+            border-color: #27ae60;
+        }
+        #simulateBtn:hover {
+            background-color: #27ae60;
+            border-color: #219651;
+        }
+        #statsContainer {
+            margin-top: 10px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <h1>Ion Channel Simulator</h1>
+        <div class="input-group">
+            <div class="input-container">
+                <label for="probOpenToClosed">Transition probability: Open to Closed</label>
+                <input type="number" id="probOpenToClosed" min="0" max="1" step="0.01" value="0.1">
+            </div>
+            <div class="input-container">
+                <label for="probClosedToOpen">Transition probability: Closed to Open</label>
+                <input type="number" id="probClosedToOpen" min="0" max="1" step="0.01" value="0.2">
+            </div>
+        </div>
+        <button id="simulateBtn">Simulate!</button>
+        <canvas id="channelCanvas" width="850" height="250"></canvas>
+        <div id="statsContainer"></div>
+    </main>
+
+    <script>
+        const canvas = document.getElementById('channelCanvas');
+        const ctx = canvas.getContext('2d');
+        const SIMULATION_STEPS = 350;
+        const PIXEL_PER_MS = 2;
+        const PLOT_HEIGHT = 140;
+        const PIXEL_PER_PA = 45;
+        const PLOT_START_X = 50;
+        const PLOT_START_Y = 50;
+        const AXIS_OFFSET = 25;
+
+        function drawGrid() {
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+
+            // Vertical lines (10ms spacing)
+            for (let i = 0; i <= SIMULATION_STEPS; i += 10) {
+                const x = PLOT_START_X + (i * PIXEL_PER_MS);
+                ctx.beginPath();
+                ctx.moveTo(x, PLOT_START_Y);
+                ctx.lineTo(x, PLOT_START_Y + (2 * PIXEL_PER_PA));
+                ctx.stroke();
+            }
+
+            // Horizontal lines (0.5 pA spacing)
+            for (let i = 0; i <= 2; i += 0.5) {
+                const y = PLOT_START_Y + (i * PIXEL_PER_PA);
+                ctx.beginPath();
+                ctx.moveTo(PLOT_START_X, y);
+                ctx.lineTo(PLOT_START_X + (SIMULATION_STEPS * PIXEL_PER_MS), y);
+                ctx.stroke();
+            }
+        }
+
+        function drawAxes() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid first
+            drawGrid();
+
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+
+            // Vertical axis (right side)
+            const vertAxisX = PLOT_START_X + (SIMULATION_STEPS * PIXEL_PER_MS) + AXIS_OFFSET;
+            ctx.beginPath();
+            ctx.moveTo(vertAxisX, PLOT_START_Y);
+            ctx.lineTo(vertAxisX, PLOT_START_Y + (2 * PIXEL_PER_PA));
+            ctx.stroke();
+
+            // Horizontal axis (with gap)
+            const horizAxisY = PLOT_START_Y + PLOT_HEIGHT + AXIS_OFFSET - 20;
+            ctx.beginPath();
+            ctx.moveTo(PLOT_START_X, horizAxisY);
+            ctx.lineTo(vertAxisX, horizAxisY);
+            ctx.stroke();
+
+            // Draw vertical axis ticks and labels
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i <= 2; i += 0.5) {
+                const y = PLOT_START_Y + (i * PIXEL_PER_PA);
+                ctx.beginPath();
+                ctx.moveTo(vertAxisX - 5, y);
+                ctx.lineTo(vertAxisX + 5, y);
+                ctx.stroke();
+                ctx.fillText(i, vertAxisX + 10, y);
+            }
+
+            // Draw horizontal axis ticks and labels
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            for (let i = 0; i <= SIMULATION_STEPS; i += 50) {
+                const x = PLOT_START_X + (i * PIXEL_PER_MS);
+                ctx.beginPath();
+                ctx.moveTo(x, horizAxisY - 5);
+                ctx.lineTo(x, horizAxisY + 5);
+                ctx.stroke();
+                ctx.fillText(`${i}`, x, horizAxisY + 10);
+            }
+
+            // Axis labels
+            ctx.save();
+            ctx.translate(vertAxisX + 40, PLOT_START_Y + (2 * PIXEL_PER_PA)/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.textAlign = 'center';
+            ctx.fillText('Current (pA)', 0, 0);
+            ctx.restore();
+
+            ctx.fillText('Time (ms)', PLOT_START_X + (SIMULATION_STEPS * PIXEL_PER_MS)/2, horizAxisY + 30);
+        }
+
+        function gaussianRandom(mean, stdev) {
+            const u = 1 - Math.random();
+            const v = Math.random();
+            const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+            return z * stdev + mean;
+        }
+
+        function computeStatistics(stateHistory) {
+            let timeOpen = 0;
+            let timeClosed = 0;
+            let openBlocks = [];
+            let currentBlockLength = 0;
+            let previousState = null;
+
+            // Count times and find open blocks
+            stateHistory.forEach(state => {
+                if (state === 1) { // Open
+                    timeOpen++;
+                    if (previousState === 1) {
+                        currentBlockLength++;
+                    } else {
+                        currentBlockLength = 1;
+                    }
+                } else { // Closed
+                    timeClosed++;
+                    if (previousState === 1 && currentBlockLength > 0) {
+                        openBlocks.push(currentBlockLength);
+                        currentBlockLength = 0;
+                    }
+                }
+                previousState = state;
+            });
+
+            // Don't forget the last block if it's open
+            if (currentBlockLength > 0) {
+                openBlocks.push(currentBlockLength);
+            }
+
+            const avgOpenTime = openBlocks.length > 0
+                ? openBlocks.reduce((a, b) => a + b, 0) / openBlocks.length
+                : 0;
+
+            return {
+                timeOpen,
+                timeClosed,
+                avgOpenTime
+            };
+        }
+
+        function displayStatistics(stats) {
+            const container = document.getElementById('statsContainer');
+            container.innerHTML = `
+                <strong>Statistics:</strong><br>
+                Total time open: ${stats.timeOpen} ms<br>
+                Total time closed: ${stats.timeClosed} ms<br>
+                Average open-time: ${stats.avgOpenTime.toFixed(2)} ms
+            `;
+        }
+
+        function simulate() {
+            const probOpenToClosed = parseFloat(document.getElementById('probOpenToClosed').value);
+            const probClosedToOpen = parseFloat(document.getElementById('probClosedToOpen').value);
+
+            if (isNaN(probOpenToClosed) || isNaN(probClosedToOpen) ||
+                probOpenToClosed < 0 || probOpenToClosed > 1 ||
+                probClosedToOpen < 0 || probClosedToOpen > 1) {
+                alert('Please enter valid probabilities between 0 and 1');
+                return;
+            }
+
+            drawAxes();
+
+            // Start in closed state (0)
+            let currentState = 0; // 0 = closed, 1 = open
+            let stateHistory = [];
+
+            ctx.beginPath();
+            ctx.strokeStyle = '#0066cc';
+            ctx.lineWidth = 1;
+
+            for (let step = 0; step < SIMULATION_STEPS; step++) {
+                const x = PLOT_START_X + (step * PIXEL_PER_MS);
+                let current;
+
+                if (currentState === 0) { // Closed
+                    current = gaussianRandom(0, 0.2);
+                    if (Math.random() < probClosedToOpen) {
+                        currentState = 1;
+                    }
+                } else { // Open
+                    current = gaussianRandom(2, 0.2);
+                    if (Math.random() < probOpenToClosed) {
+                        currentState = 0;
+                    }
+                }
+
+                stateHistory.push(currentState);
+                const y = PLOT_START_Y + (current * PIXEL_PER_PA);
+
+                if (step === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+
+            // Calculate and display statistics
+            const stats = computeStatistics(stateHistory);
+            displayStatistics(stats);
+        }
+
+        document.getElementById('simulateBtn').addEventListener('click', simulate);
+        drawAxes(); // Initial axes draw
+    </script>
+</body>
+</html>
