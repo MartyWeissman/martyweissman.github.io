@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vector and matrix calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 8px 16px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .calculator {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .vector-scalar-row {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .matrix-container, .vector-container, .scalar-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .matrix {
+            display: grid;
+            gap: 5px;
+        }
+
+        .vector {
+            display: grid;
+            gap: 5px;
+        }
+
+        input {
+            width: 50px;
+            height: 30px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .matrix-label, .vector-label, .scalar-label {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .results {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .result-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .result-label {
+            font-weight: bold;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .result-matrix, .result-vector {
+            display: grid;
+            gap: 5px;
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .result-cell {
+            width: 50px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Vector and Matrix Calculator</h1>
+
+    <div class="controls">
+        <button onclick="setDimension(2)">2-dimensional</button>
+        <button onclick="setDimension(3)">3-dimensional</button>
+        <button onclick="setDimension(4)">4-dimensional</button>
+    </div>
+
+    <div id="calculator" class="calculator hidden">
+        <div class="matrix-container">
+            <div class="matrix-label">Matrix M</div>
+            <div id="matrix-m" class="matrix"></div>
+        </div>
+
+        <div class="matrix-container">
+            <div class="matrix-label">Matrix N</div>
+            <div id="matrix-n" class="matrix"></div>
+        </div>
+
+        <div class="vector-scalar-row">
+            <div class="vector-container">
+                <div class="vector-label">Vector v</div>
+                <div id="vector-v" class="vector"></div>
+            </div>
+
+            <div class="vector-container">
+                <div class="vector-label">Vector w</div>
+                <div id="vector-w" class="vector"></div>
+            </div>
+
+            <div class="scalar-container">
+                <div class="scalar-label">Scalar λ</div>
+                <input type="number" id="scalar" value="1" step="any" oninput="updateResults()">
+            </div>
+        </div>
+    </div>
+
+    <div id="results" class="results hidden">
+        <div class="result-container">
+            <div class="result-label">M + N</div>
+            <div id="result-m-plus-n" class="result-matrix"></div>
+        </div>
+
+        <div class="result-container">
+            <div class="result-label">M × N</div>
+            <div id="result-m-times-n" class="result-matrix"></div>
+        </div>
+
+        <div class="result-container">
+            <div class="result-label">M × v</div>
+            <div id="result-m-times-v" class="result-vector"></div>
+        </div>
+
+        <div class="result-container">
+            <div class="result-label">N × w</div>
+            <div id="result-n-times-w" class="result-vector"></div>
+        </div>
+
+        <div class="result-container">
+            <div class="result-label">λv</div>
+            <div id="result-lambda-v" class="result-vector"></div>
+        </div>
+
+        <div class="result-container">
+            <div class="result-label">λw</div>
+            <div id="result-lambda-w" class="result-vector"></div>
+        </div>
+
+        <div class="result-container">
+            <div class="result-label">v + w</div>
+            <div id="result-v-plus-w" class="result-vector"></div>
+        </div>
+    </div>
+
+    <script>
+        function getMatrixValues(id, dim) {
+            const matrix = [];
+            const inputs = document.querySelectorAll(`#${id} input`);
+            for (let i = 0; i < dim; i++) {
+                matrix[i] = [];
+                for (let j = 0; j < dim; j++) {
+                    matrix[i][j] = parseFloat(inputs[i * dim + j].value) || 0;
+                }
+            }
+            return matrix;
+        }
+
+        function getVectorValues(id, dim) {
+            const vector = [];
+            const inputs = document.querySelectorAll(`#${id} input`);
+            for (let i = 0; i < dim; i++) {
+                vector[i] = parseFloat(inputs[i].value) || 0;
+            }
+            return vector;
+        }
+
+        function createMatrix(id, dim, isIdentity = false) {
+            const matrix = document.getElementById(id);
+            matrix.style.gridTemplateColumns = `repeat(${dim}, 1fr)`;
+            matrix.innerHTML = '';
+
+            for (let i = 0; i < dim; i++) {
+                for (let j = 0; j < dim; j++) {
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.step = 'any';
+                    input.value = isIdentity ? (i === j ? 1 : 0) : 0;
+                    input.oninput = updateResults;
+                    matrix.appendChild(input);
+                }
+            }
+        }
+
+        function createVector(id, dim, defaultValue = 0) {
+            const vector = document.getElementById(id);
+            vector.style.gridTemplateColumns = '1fr';
+            vector.innerHTML = '';
+
+            for (let i = 0; i < dim; i++) {
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.step = 'any';
+                input.value = defaultValue;
+                input.oninput = updateResults;
+                vector.appendChild(input);
+            }
+        }
+
+        function displayMatrix(id, matrix) {
+            const container = document.getElementById(id);
+            container.style.gridTemplateColumns = `repeat(${matrix[0].length}, 1fr)`;
+            container.innerHTML = '';
+
+            for (let i = 0; i < matrix.length; i++) {
+                for (let j = 0; j < matrix[0].length; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'result-cell';
+                    cell.textContent = matrix[i][j].toFixed(2);
+                    container.appendChild(cell);
+                }
+            }
+        }
+
+        function displayVector(id, vector) {
+            const container = document.getElementById(id);
+            container.style.gridTemplateColumns = '1fr';
+            container.innerHTML = '';
+
+            for (let i = 0; i < vector.length; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'result-cell';
+                cell.textContent = vector[i].toFixed(2);
+                container.appendChild(cell);
+            }
+        }
+
+        function matrixAdd(A, B) {
+            return A.map((row, i) => row.map((val, j) => val + B[i][j]));
+        }
+
+        function matrixMultiply(A, B) {
+            const result = [];
+            for (let i = 0; i < A.length; i++) {
+                result[i] = [];
+                for (let j = 0; j < B[0].length; j++) {
+                    result[i][j] = A[i].reduce((sum, val, k) => sum + val * B[k][j], 0);
+                }
+            }
+            return result;
+        }
+
+        function matrixVectorMultiply(A, v) {
+            return A.map(row => row.reduce((sum, val, j) => sum + val * v[j], 0));
+        }
+
+        function vectorAdd(v, w) {
+            return v.map((val, i) => val + w[i]);
+        }
+
+        function scalarVectorMultiply(lambda, v) {
+            return v.map(val => lambda * val);
+        }
+
+        function updateResults() {
+            const dim = document.querySelector('#matrix-m').style.gridTemplateColumns.match(/\d+/)[0];
+            const M = getMatrixValues('matrix-m', dim);
+            const N = getMatrixValues('matrix-n', dim);
+            const v = getVectorValues('vector-v', dim);
+            const w = getVectorValues('vector-w', dim);
+            const lambda = parseFloat(document.getElementById('scalar').value) || 0;
+
+            displayMatrix('result-m-plus-n', matrixAdd(M, N));
+            displayMatrix('result-m-times-n', matrixMultiply(M, N));
+            displayVector('result-m-times-v', matrixVectorMultiply(M, v));
+            displayVector('result-n-times-w', matrixVectorMultiply(N, w));
+            displayVector('result-lambda-v', scalarVectorMultiply(lambda, v));
+            displayVector('result-lambda-w', scalarVectorMultiply(lambda, w));
+            displayVector('result-v-plus-w', vectorAdd(v, w));
+        }
+
+        function setDimension(dim) {
+            const calculator = document.getElementById('calculator');
+            const results = document.getElementById('results');
+            calculator.classList.remove('hidden');
+            results.classList.remove('hidden');
+
+            createMatrix('matrix-m', dim, true);  // Identity matrix
+            createMatrix('matrix-n', dim);        // Zero matrix
+            createVector('vector-v', dim, 1);     // Ones vector
+            createVector('vector-w', dim, 0);     // Zero vector
+
+            // Reset scalar to 1
+            document.getElementById('scalar').value = 1;
+
+            // Update results
+            updateResults();
+        }
+
+        // Initialize with 2D by default
+        setDimension(2);
+    </script>
+</body>
+</html>

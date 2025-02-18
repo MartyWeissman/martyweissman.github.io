@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two-dimensional Matrix Visualizer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/1.5.10/pico.min.css">
+    <style>
+        .matrix-container {
+            display: flex;
+            gap: 2rem;
+            align-items: flex-start;
+            margin: 2rem 0;
+        }
+        .matrix {
+            display: grid;
+            grid-template-columns: repeat(2, 60px);
+            gap: 5px;
+            padding: 0 10px;
+            border-left: 2px solid #333;
+            border-right: 2px solid #333;
+            position: relative;
+        }
+        .matrix input {
+            width: 60px;
+            padding: 5px;
+            text-align: center;
+            margin: 0;
+        }
+        .properties {
+            min-width: 300px;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .section-header {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+        .subsection-header {
+            font-weight: bold;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .visualization-container {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            margin: 1rem 0;
+        }
+        article {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <article>
+        <h1>Two-dimensional Matrix Visualizer</h1>
+        <div class="matrix-container">
+            <div>
+                <button id="reset-button" class="secondary">Reset M!</button>
+                <div class="section-header">Enter Matrix M:</div>
+                <div class="matrix">
+                    <input type="number" id="m11" value="1" step="0.1">
+                    <input type="number" id="m12" value="0" step="0.1">
+                    <input type="number" id="m21" value="0" step="0.1">
+                    <input type="number" id="m22" value="1" step="0.1">
+                </div>
+            </div>
+            <div class="properties">
+                <div class="section-header">Matrix Properties:</div>
+                <div id="matrix-properties">Loading...</div>
+            </div>
+        </div>
+        <div class="visualization-container">
+            <canvas id="visualizer" width="400" height="400"></canvas>
+            <div class="button-container">
+                <button id="circle-button">Unit circle</button>
+                <button id="square-button">Unit square</button>
+                <button id="centered-button">Centered square</button>
+                <button id="next-button">Next state</button>
+            </div>
+        </div>
+    </article>
+    <script>
+        const inputs = ['m11', 'm12', 'm21', 'm22'].map(id => document.getElementById(id));
+        const propertiesDiv = document.getElementById('matrix-properties');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        function getMatrix() {
+            return [
+                [parseFloat(inputs[0].value), parseFloat(inputs[1].value)],
+                [parseFloat(inputs[2].value), parseFloat(inputs[3].value)]
+            ];
+        }
+
+        function calculateTrace(M) {
+            return M[0][0] + M[1][1];
+        }
+
+        function calculateDeterminant(M) {
+            return M[0][0] * M[1][1] - M[0][1] * M[1][0];
+        }
+
+        function calculateEigenvalues(M) {
+            const trace = calculateTrace(M);
+            const det = calculateDeterminant(M);
+            const discriminant = trace * trace - 4 * det;
+
+            if (discriminant > 0) {
+                const lambda1 = (trace + Math.sqrt(discriminant)) / 2;
+                const lambda2 = (trace - Math.sqrt(discriminant)) / 2;
+                return { type: 'real', values: [lambda1, lambda2] };
+            } else if (discriminant === 0) {
+                return { type: 'repeated', values: [trace / 2] };
+            } else {
+                return { type: 'complex' };
+            }
+        }
+
+        function normalize(vector) {
+            if (Math.abs(vector[0]) < 1e-10 && Math.abs(vector[1]) < 1e-10) {
+                return [1, 0];
+            }
+            const magnitude = Math.sqrt(vector[0] * vector[0] + vector[1] * vector[1]);
+            let v = [vector[0] / magnitude, vector[1] / magnitude];
+            if (v[0] !== 0) {
+                if (v[0] < 0) v = [-v[0], -v[1]];
+            } else if (v[1] < 0) {
+                v = [-v[0], -v[1]];
+            }
+            return v;
+        }
+
+        function calculateEigenvector(M, lambda, isDefective = false) {
+            const a = M[0][0] - lambda;
+            const b = M[0][1];
+            const c = M[1][0];
+            const d = M[1][1] - lambda;
+
+            if (isDefective) {
+                if (Math.abs(a) >= Math.abs(c)) {
+                    if (Math.abs(b) >= Math.abs(a)) return normalize([1, 0]);
+                    return normalize([0, 1]);
+                } else {
+                    if (Math.abs(d) >= Math.abs(c)) return normalize([1, 0]);
+                    return normalize([0, 1]);
+                }
+            }
+
+            let v1 = Math.abs(a) >= Math.abs(b) ? [-b, a] : [1, -a/b];
+            let v2 = Math.abs(c) >= Math.abs(d) ? [-d, c] : [1, -c/d];
+
+            const Mv1 = [M[0][0]*v1[0] + M[0][1]*v1[1], M[1][0]*v1[0] + M[1][1]*v1[1]];
+            const Mv2 = [M[0][0]*v2[0] + M[0][1]*v2[1], M[1][0]*v2[0] + M[1][1]*v2[1]];
+
+            const error1 = Math.abs(Mv1[0] - lambda*v1[0]) + Math.abs(Mv1[1] - lambda*v1[1]);
+            const error2 = Math.abs(Mv2[0] - lambda*v2[0]) + Math.abs(Mv2[1] - lambda*v2[1]);
+
+            return normalize(error1 <= error2 ? v1 : v2);
+        }
+
+        function updateProperties() {
+            const M = getMatrix();
+            const trace = calculateTrace(M);
+            const det = calculateDeterminant(M);
+            const eigenvalues = calculateEigenvalues(M);
+
+            let text = `<p>Tr(M) = ${trace.toFixed(2)}, Det(M) = ${det.toFixed(2)}</p>`;
+            text += '<div class="subsection-header">Eigenstuff:</div>';
+
+            if (eigenvalues.type === 'real') {
+                const λ1 = eigenvalues.values[0];
+                const λ2 = eigenvalues.values[1];
+                const v1 = calculateEigenvector(M, λ1);
+                const v2 = calculateEigenvector(M, λ2);
+                text += `<p>Eigenvector (${v1[0].toFixed(2)}, ${v1[1].toFixed(2)}) with eigenvalue ${λ1.toFixed(2)}</p>
+                        <p>Eigenvector (${v2[0].toFixed(2)}, ${v2[1].toFixed(2)}) with eigenvalue ${λ2.toFixed(2)}</p>`;
+            } else if (eigenvalues.type === 'repeated') {
+                const λ = eigenvalues.values[0];
+                const isScalar = Math.abs(M[0][1]) < 1e-10 && Math.abs(M[1][0]) < 1e-10 &&
+                                Math.abs(M[0][0] - M[1][1]) < 1e-10;
+
+                if (isScalar) {
+                    text += `<p>Eigenvalue ${λ.toFixed(2)}</p>
+                            <p>Eigenvector: all vectors</p>`;
+                } else {
+                    const v = calculateEigenvector(M, λ, true);
+                    text += `<p>Repeated eigenvalue ${λ.toFixed(2)}</p>
+                            <p>Eigenvector (${v[0].toFixed(2)}, ${v[1].toFixed(2)})</p>
+                            <p>Matrix is defective</p>`;
+                }
+            } else {
+                text += '<p>Complex conjugate eigenvalues</p>';
+            }
+
+            propertiesDiv.innerHTML = text;
+        }
+        function getColor(eigenvalue) {
+                const absValue = Math.abs(eigenvalue);
+                if (absValue > 1) return '#006400';
+                if (absValue < 1) return '#8B0000';
+                return '#404040';
+            }
+
+            function drawEigenvectorLine(ctx, vector) {
+                ctx.beginPath();
+                ctx.moveTo(-2.5 * vector[0], -2.5 * vector[1]);
+                ctx.lineTo(2.5 * vector[0], 2.5 * vector[1]);
+                ctx.stroke();
+            }
+
+            function drawScalingCircle(ctx) {
+                ctx.beginPath();
+                ctx.arc(0, 0, 1, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+
+            function updateCanvas() {
+                const M = getMatrix();
+                const eigenvalues = calculateEigenvalues(M);
+
+                if (eigenvalues.type === 'real') {
+                    const λ1 = eigenvalues.values[0];
+                    const λ2 = eigenvalues.values[1];
+                    const v1 = calculateEigenvector(M, λ1);
+                    const v2 = calculateEigenvector(M, λ2);
+
+                    ctx.strokeStyle = getColor(λ1);
+                    drawEigenvectorLine(ctx, v1);
+                    ctx.strokeStyle = getColor(λ2);
+                    drawEigenvectorLine(ctx, v2);
+                } else if (eigenvalues.type === 'repeated') {
+                    const λ = eigenvalues.values[0];
+                    const isScalar = Math.abs(M[0][1]) < 1e-10 && Math.abs(M[1][0]) < 1e-10 &&
+                                    Math.abs(M[0][0] - M[1][1]) < 1e-10;
+
+                    ctx.strokeStyle = getColor(λ);
+
+                    if (isScalar) {
+                        drawScalingCircle(ctx);
+                    } else {
+                        const v = calculateEigenvector(M, λ, true);
+                        drawEigenvectorLine(ctx, v);
+                    }
+                }
+            }
+
+            let animationPoints = [];
+
+            function generatePoints(type) {
+                const points = [];
+                if (type === 'circle') {
+                    for (let r = 0; r <= 4; r++) {
+                        const radius = r/4;
+                        for (let theta = 0; theta < 8; theta++) {
+                            const angle = (2 * Math.PI * theta) / 8;
+                            points.push([
+                                radius * Math.cos(angle),
+                                radius * Math.sin(angle)
+                            ]);
+                        }
+                    }
+                } else if (type === 'square') {
+                    for (let i = 0; i <= 8; i++) {
+                        for (let j = 0; j <= 8; j++) {
+                            points.push([i/8, j/8]);
+                        }
+                    }
+                } else { // centered
+                    for (let i = 0; i <= 8; i++) {
+                        for (let j = 0; j <= 8; j++) {
+                            points.push([
+                                -1 + 2*i/8,
+                                -1 + 2*j/8
+                            ]);
+                        }
+                    }
+                }
+                return points;
+            }
+
+            let currentPoints = [];  // rename from animationPoints for clarity
+
+            function renderFrame() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.save();
+                ctx.translate(canvas.width/2, canvas.height/2);
+                ctx.scale(80, -80);
+                ctx.lineWidth = 1/80;
+
+                updateCanvas();
+
+                ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+                currentPoints.forEach(point => {
+                    ctx.beginPath();
+                    ctx.arc(point[0], point[1], 0.03, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+
+                ctx.restore();
+            }
+
+            function moveToNextState() {
+                const M = getMatrix();
+                currentPoints = currentPoints.map(point => ([
+                    M[0][0] * point[0] + M[0][1] * point[1],
+                    M[1][0] * point[0] + M[1][1] * point[1]
+                ]));
+                renderFrame();
+            }
+
+            function initializePoints(type) {
+                currentPoints = generatePoints(type);
+                renderFrame();
+            }
+
+            // Modify event listeners section to:
+            document.getElementById('circle-button').addEventListener('click', () => initializePoints('circle'));
+            document.getElementById('square-button').addEventListener('click', () => initializePoints('square'));
+            document.getElementById('centered-button').addEventListener('click', () => initializePoints('centered'));
+            document.getElementById('next-button').addEventListener('click', moveToNextState);
+
+            inputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    updateProperties();
+                    renderFrame();
+                });
+            });
+
+            document.getElementById('reset-button').addEventListener('click', () => {
+                inputs[0].value = "1";
+                inputs[1].value = "0";
+                inputs[2].value = "0";
+                inputs[3].value = "1";
+                updateProperties();
+                renderFrame();
+            });
+
+            updateProperties();
+            renderFrame();
+        </script>
+</body>
+</html>

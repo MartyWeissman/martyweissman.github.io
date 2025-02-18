@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three Compartment Matrix Modeler</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/1.5.10/pico.min.css">
+    <style>
+        .grid-container {
+            display: grid;
+            grid-template-columns: auto auto auto auto 20px auto;
+            gap: 10px;
+            margin: 20px 0;
+            align-items: center;
+        }
+
+        .spacer {
+            width: 20px;
+        }
+
+        input {
+            width: 100px;
+            text-align: center;
+        }
+
+        .header-cell {
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .matrix-header {
+            text-align: center;
+            font-weight: bold;
+            line-height: 1.2;
+        }
+
+        .row-header {
+            font-weight: bold;
+            text-align: right;
+        }
+
+        canvas {
+            border: 1px solid #ccc;
+            margin: 20px 0;
+            width: 800px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .compartment-input {
+            width: 30px;
+            text-align: center;
+            padding: 2px;
+            display: inline;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .run-button {
+            background-color: #166534;
+            border-color: #166534;
+        }
+
+        .reset-button {
+            background-color: #991b1b;
+            border-color: #991b1b;
+        }
+
+        button:hover {
+            filter: brightness(120%);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Three Compartment Matrix Modeler</h1>
+
+        <div class="grid-container">
+            <!-- Header row -->
+            <div class="matrix-header">Transition<br>Matrix</div>
+            <div class="header-cell">
+                From <input type="text" id="compartmentA" class="compartment-input" value="A" onchange="updateLabels()">
+            </div>
+            <div class="header-cell">
+                From <input type="text" id="compartmentB" class="compartment-input" value="B" onchange="updateLabels()">
+            </div>
+            <div class="header-cell">
+                From <input type="text" id="compartmentC" class="compartment-input" value="C" onchange="updateLabels()">
+            </div>
+            <div class="spacer"></div>
+            <div class="header-cell">Starting State</div>
+
+            <!-- Data rows -->
+            <div class="row-header" id="rowA">To A</div>
+            <input type="number" class="matrix-input" value="1" step="0.01" min="0" max="1">
+            <input type="number" class="matrix-input" value="0" step="0.01" min="0" max="1">
+            <input type="number" class="matrix-input" value="0" step="0.01" min="0" max="1">
+            <div class="spacer"></div>
+            <input type="number" class="state-input" value="1000" step="1">
+
+            <div class="row-header" id="rowB">To B</div>
+            <input type="number" class="matrix-input" value="0" step="0.01" min="0" max="1">
+            <input type="number" class="matrix-input" value="1" step="0.01" min="0" max="1">
+            <input type="number" class="matrix-input" value="0" step="0.01" min="0" max="1">
+            <div class="spacer"></div>
+            <input type="number" class="state-input" value="500" step="1">
+
+            <div class="row-header" id="rowC">To C</div>
+            <input type="number" class="matrix-input" value="0" step="0.01" min="0" max="1">
+            <input type="number" class="matrix-input" value="0" step="0.01" min="0" max="1">
+            <input type="number" class="matrix-input" value="1" step="0.01" min="0" max="1">
+            <div class="spacer"></div>
+            <input type="number" class="state-input" value="200" step="1">
+        </div>
+
+        <div class="button-container">
+            <button class="run-button" onclick="runModel()">Run model!</button>
+            <button class="reset-button" onclick="resetModel()">Reset</button>
+        </div>
+
+        <canvas id="modelCanvas" width="800" height="200"></canvas>
+    </div>
+    <script>
+        const canvas = document.getElementById('modelCanvas');
+        const ctx = canvas.getContext('2d');
+        const colors = ['#1f77b4', '#2ca02c', '#d62728'];
+        let animationId = null;
+        let timeSeriesData = [];
+
+        function updateLabels() {
+            const compA = document.getElementById('compartmentA').value;
+            const compB = document.getElementById('compartmentB').value;
+            const compC = document.getElementById('compartmentC').value;
+
+            document.getElementById('rowA').textContent = 'To ' + compA;
+            document.getElementById('rowB').textContent = 'To ' + compB;
+            document.getElementById('rowC').textContent = 'To ' + compC;
+            drawGraph();
+        }
+
+        function getTransitionMatrix() {
+            const inputs = document.querySelectorAll('.matrix-input');
+            const matrix = [];
+            for (let i = 0; i < 3; i++) {
+                matrix[i] = [];
+                for (let j = 0; j < 3; j++) {
+                    matrix[i][j] = parseFloat(inputs[i * 3 + j].value);
+                }
+            }
+            return matrix;
+        }
+
+        function getStartingState() {
+            const inputs = document.querySelectorAll('.state-input');
+            return Array.from(inputs).map(input => parseFloat(input.value));
+        }
+
+        function multiplyMatrixVector(matrix, vector) {
+            return matrix.map(row =>
+                row.reduce((sum, cell, i) => sum + cell * vector[i], 0)
+            );
+        }
+
+        function drawGraph() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const currentState = timeSeriesData.length ? timeSeriesData[timeSeriesData.length - 1] : getStartingState();
+            const maxValue = Math.max(...currentState) * 1.1;
+            const padding = 30;
+            const graphWidth = canvas.width - 2 * padding;
+            const graphHeight = canvas.height - 2 * padding;
+
+            // Ensure text color is black
+            ctx.fillStyle = '#000000';
+            ctx.strokeStyle = '#000000';
+
+            // Draw axes
+            ctx.beginPath();
+            ctx.lineWidth = 1;
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, canvas.height - padding);
+            ctx.lineTo(canvas.width - padding, canvas.height - padding);
+            ctx.stroke();
+
+            // Draw Y-axis ticks and labels (left side)
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#000000';
+            for (let i = 0; i <= 3; i++) {
+                const y = padding + (graphHeight * (1 - i/3));
+                const value = Math.round(maxValue * i/3);
+                ctx.beginPath();
+                ctx.moveTo(padding - 5, y);
+                ctx.lineTo(padding, y);
+                ctx.stroke();
+                ctx.fillText(value, padding - 8, y);
+            }
+
+            // Draw X-axis ticks and labels
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            for (let t = 0; t <= 100; t += 20) {
+                const x = padding + (graphWidth * t/100);
+                ctx.beginPath();
+                ctx.moveTo(x, canvas.height - padding);
+                ctx.lineTo(x, canvas.height - padding + 5);
+                ctx.stroke();
+                ctx.fillText(t, x, canvas.height - padding + 8);
+            }
+
+            // Draw "Time" label (moved to the right)
+            ctx.fillText('Time', canvas.width - padding - 50, canvas.height - padding + 8);
+
+            // Draw right axis with final values if simulation has completed
+            if (timeSeriesData.length === 101) {
+                const finalState = timeSeriesData[timeSeriesData.length - 1];
+
+                // Draw right axis
+                ctx.beginPath();
+                ctx.moveTo(canvas.width - padding, padding);
+                ctx.lineTo(canvas.width - padding, canvas.height - padding);
+                ctx.stroke();
+
+                // Draw final values with matching colors
+                for (let i = 0; i < 3; i++) {
+                    const y = padding + graphHeight * (1 - finalState[i]/maxValue);
+                    ctx.fillStyle = colors[i];
+                    ctx.beginPath();
+                    ctx.moveTo(canvas.width - padding, y);
+                    ctx.lineTo(canvas.width - padding + 5, y);
+                    ctx.stroke();
+                    ctx.textAlign = 'left';
+                    ctx.fillText(Math.round(finalState[i]), canvas.width - padding + 8, y);
+                }
+            }
+
+            // Draw legend
+            const compartments = [
+                document.getElementById('compartmentA').value,
+                document.getElementById('compartmentB').value,
+                document.getElementById('compartmentC').value
+            ];
+
+            const legendSpacing = 160; // Increased from 120 for more space
+            const legendWidth = legendSpacing * 2;
+            const legendStartX = (canvas.width - legendWidth) / 2;
+
+            for (let i = 0; i < 3; i++) {
+                const x = legendStartX + i * legendSpacing;
+                ctx.fillStyle = colors[i];
+                ctx.beginPath();
+                ctx.arc(x, padding - 10, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#000000';
+
+                // Create legend text with current value
+                let value = currentState[i];
+                let legendText = compartments[i];
+                if (value !== undefined) {
+                    legendText += `: ${Math.round(value)}`;
+                }
+                ctx.fillText(legendText, x + 20, padding - 15);
+            }
+
+            // Draw time series and dots
+            for (let comp = 0; comp < 3; comp++) {
+                ctx.strokeStyle = colors[comp];
+                ctx.fillStyle = colors[comp];
+                ctx.lineWidth = 2;
+
+                if (timeSeriesData.length > 0) {
+                    ctx.beginPath();
+                    timeSeriesData.forEach((state, t) => {
+                        const x = padding + (graphWidth * t/100);
+                        const y = padding + graphHeight * (1 - state[comp]/maxValue);
+
+                        if (t === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+
+                        if (t % 10 === 0) {
+                            ctx.stroke();
+                            ctx.beginPath();
+                            ctx.arc(x, y, 3, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.beginPath();
+                            ctx.moveTo(x, y);
+                        }
+                    });
+                    ctx.stroke();
+                } else {
+                    // Draw initial state dots
+                    const x = padding;
+                    const y = padding + graphHeight * (1 - currentState[comp]/maxValue);
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        // Add event listeners for starting state inputs to update dots
+        document.querySelectorAll('.state-input').forEach(input => {
+            input.addEventListener('input', () => {
+                if (timeSeriesData.length === 0) {
+                    drawGraph();
+                }
+            });
+        });
+
+        async function runModel() {
+            if (animationId) return;
+
+            const matrix = getTransitionMatrix();
+            let state = getStartingState();
+            timeSeriesData = [state];
+
+            for (let t = 1; t <= 100; t++) {
+                state = multiplyMatrixVector(matrix, state);
+                timeSeriesData.push([...state]);
+                drawGraph();
+                await new Promise(resolve => setTimeout(resolve, 20));
+            }
+        }
+
+        function resetModel() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            timeSeriesData = [];
+            drawGraph();
+        }
+
+        // Draw initial state on load
+        drawGraph();
+    </script>
+</body>
+</html>
