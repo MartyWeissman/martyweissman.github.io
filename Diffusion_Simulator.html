@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brownian Motion Simulator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/picocss/1.5.10/pico.min.css">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #000;
+            color: #fff;
+        }
+        .container {
+            max-width: 700px;
+            text-align: center;
+        }
+        canvas {
+            background-color: #fff;
+            border-radius: 50%;
+            margin: 0;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+        #histogramCanvas {
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .simulation-container {
+            position: relative;
+            margin: 20px 0;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .stats {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+            font-family: monospace;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="color: #fff;">Brownian Motion Simulator</h1>
+        <p>Simulating 1000 particles in a 3cm radius petri dish</p>
+
+        <div class="controls">
+            <button id="startBtn" class="primary">Start</button>
+            <button id="stopBtn" disabled>Stop</button>
+            <button id="resetBtn">Reset</button>
+        </div>
+
+        <div class="simulation-container">
+            <canvas id="histogramCanvas" width="600" height="100"></canvas>
+            <canvas id="petriDish" width="600" height="600"></canvas>
+        </div>
+
+        <div class="stats">
+            <div>Simulation time: <span id="simTime">0.00</span> seconds</div>
+            <div>Particles in dish: <span id="particleCount">1000</span></div>
+        </div>
+    </div>
+
+    <script>
+        // Constants
+        const SCALE = 100; // 1cm = 100 pixels
+        const RADIUS_CM = 3; // Petri dish radius in cm
+        const RADIUS_PX = RADIUS_CM * SCALE; // Petri dish radius in pixels
+        const NUM_PARTICLES = 1000; // Number of particles
+        const INITIAL_SIZE_CM = 0.1; // Initial distribution size in cm
+        const INITIAL_SIZE_PX = INITIAL_SIZE_CM * SCALE; // Initial distribution size in pixels
+        const DIFFUSION_COEFFICIENT = 0.0001; // Controls speed of diffusion
+        const TIME_STEP = 0.05; // Simulation time step in seconds
+        const HEAT_COLORS = [
+            [0, 0, 255],      // Blue (low)
+            [0, 255, 255],    // Cyan
+            [0, 255, 0],      // Green
+            [255, 255, 0],    // Yellow
+            [255, 128, 0],    // Orange
+            [255, 0, 0]       // Red (high)
+        ];
+
+        // Elements
+        const canvas = document.getElementById('petriDish');
+        const ctx = canvas.getContext('2d');
+        const histCanvas = document.getElementById('histogramCanvas');
+        const histCtx = histCanvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const simTimeEl = document.getElementById('simTime');
+        const particleCountEl = document.getElementById('particleCount');
+        const maxDensityEl = document.getElementById('maxDensity');
+
+        // Simulation variables
+        let particles = [];
+        let simTime = 0;
+        let animationId = null;
+        let isRunning = false;
+        let particlesInDish = NUM_PARTICLES;
+        let maxParticlesPerPixel = 0;
+        let densityMap = {};
+        let histogram = [];
+        const NUM_BINS = 60; // Number of bins for histogram
+
+        // Center the coordinate system on the canvas
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        // Initialize the simulation
+        function initSimulation() {
+            // Clear existing particles
+            particles = [];
+            densityMap = {};
+            histogram = Array(NUM_BINS).fill(0);
+            simTime = 0;
+            maxParticlesPerPixel = 0;
+
+            // Create particles in a small square at the center
+            for (let i = 0; i < NUM_PARTICLES; i++) {
+                const x = (Math.random() * INITIAL_SIZE_PX) - (INITIAL_SIZE_PX / 2);
+                const y = (Math.random() * INITIAL_SIZE_PX) - (INITIAL_SIZE_PX / 2);
+                particles.push({ x, y });
+            }
+
+            // Update UI
+            particlesInDish = NUM_PARTICLES;
+            particleCountEl.textContent = particlesInDish;
+            simTimeEl.textContent = "0.00";
+
+            // Draw initial state
+            drawParticles();
+        }
+
+        // Update particle positions based on Brownian motion
+        function updateParticles() {
+            densityMap = {}; // Reset density map
+            particlesInDish = 0;
+
+            for (let i = 0; i < particles.length; i++) {
+                const particle = particles[i];
+
+                // Skip particles that have left the dish
+                if (particle.x*particle.x + particle.y*particle.y > RADIUS_PX*RADIUS_PX) {
+                    continue;
+                }
+
+                // Apply Brownian motion
+                // Standard deviation for Gaussian distribution is sqrt(2*D*dt)
+                const stdDev = Math.sqrt(2 * DIFFUSION_COEFFICIENT * TIME_STEP) * SCALE;
+
+                // Box-Muller transform for Gaussian distribution
+                const u1 = Math.random();
+                const u2 = Math.random();
+                const z1 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+                const z2 = Math.sqrt(-2 * Math.log(u1)) * Math.sin(2 * Math.PI * u2);
+
+                particle.x += z1 * stdDev;
+                particle.y += z2 * stdDev;
+
+                // Check if particle is still in the dish
+                if (particle.x*particle.x + particle.y*particle.y <= RADIUS_PX*RADIUS_PX) {
+                    particlesInDish++;
+
+                    // Map to pixel coordinates (rounded to integers)
+                    const pixelX = Math.round(particle.x + centerX);
+                    const pixelY = Math.round(particle.y + centerY);
+                    const key = `${pixelX},${pixelY}`;
+
+                    // Increment density map
+                    if (!densityMap[key]) {
+                        densityMap[key] = 1;
+                    } else {
+                        densityMap[key]++;
+                    }
+
+                    // Update max density
+                    if (densityMap[key] > maxParticlesPerPixel) {
+                        maxParticlesPerPixel = densityMap[key];
+                    }
+                }
+            }
+
+            // Update UI
+            particleCountEl.textContent = particlesInDish;
+            simTimeEl.textContent = simTime.toFixed(2);
+        }
+
+        // Draw particles on the canvas
+        function drawParticles() {
+            // Clear canvas with white background
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, RADIUS_PX, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw particles based on density
+            for (const key in densityMap) {
+                const [x, y] = key.split(',').map(Number);
+                const density = densityMap[key];
+
+                // Calculate color based on density
+                const normalizedDensity = density / maxParticlesPerPixel;
+                const color = getHeatMapColor(normalizedDensity);
+
+                ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                ctx.fillRect(x, y, 1, 1);
+            }
+
+            // Update and draw histogram
+            updateHistogram();
+            drawHistogram();
+        }
+
+        // Update histogram data
+        function updateHistogram() {
+            // Reset histogram bins
+            histogram = Array(NUM_BINS).fill(0);
+
+            // Calculate histogram bin width
+            const binWidth = (2 * RADIUS_PX) / NUM_BINS;
+
+            // Count particles in each bin
+            for (let i = 0; i < particles.length; i++) {
+                const particle = particles[i];
+
+                // Skip particles outside the dish
+                if (particle.x*particle.x + particle.y*particle.y > RADIUS_PX*RADIUS_PX) {
+                    continue;
+                }
+
+                // Map x-coordinate to bin
+                const binIndex = Math.floor((particle.x + RADIUS_PX) / binWidth);
+                if (binIndex >= 0 && binIndex < NUM_BINS) {
+                    histogram[binIndex]++;
+                }
+            }
+        }
+
+        // Draw histogram
+        function drawHistogram() {
+            const width = histCanvas.width;
+            const height = histCanvas.height;
+
+            // Clear histogram canvas
+            histCtx.clearRect(0, 0, width, height);
+            histCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            histCtx.fillRect(0, 0, width, height);
+
+            // Find maximum bin value for normalization
+            const maxBinValue = Math.max(...histogram);
+
+            // Draw histogram bars
+            const barWidth = width / NUM_BINS;
+
+            for (let i = 0; i < NUM_BINS; i++) {
+                const barHeight = maxBinValue > 0 ? (histogram[i] / maxBinValue) * (height - 20) : 0;
+                const x = i * barWidth;
+                const y = height - barHeight - 10;
+
+                // Get color based on bin height (normalized)
+                const normalizedHeight = maxBinValue > 0 ? histogram[i] / maxBinValue : 0;
+                const color = getHeatMapColor(normalizedHeight);
+
+                histCtx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                histCtx.fillRect(x, y, barWidth - 1, barHeight);
+            }
+
+            // Draw x-axis reference line
+            histCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            histCtx.beginPath();
+            histCtx.moveTo(0, height - 10);
+            histCtx.lineTo(width, height - 10);
+            histCtx.stroke();
+
+            // Draw center line
+            histCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            histCtx.beginPath();
+            histCtx.setLineDash([5, 3]);
+            histCtx.moveTo(width / 2, 0);
+            histCtx.lineTo(width / 2, height);
+            histCtx.stroke();
+            histCtx.setLineDash([]);
+
+            // Add labels
+            histCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            histCtx.font = '10px Arial';
+            histCtx.textAlign = 'center';
+            histCtx.fillText('Position Distribution (X-axis)', width / 2, 12);
+            histCtx.fillText('-3cm', 10, height - 1);
+            histCtx.fillText('0', width / 2, height - 1);
+            histCtx.fillText('+3cm', width - 10, height - 1);
+        }
+
+        // Get color from heat map based on normalized value (0-1)
+        function getHeatMapColor(value) {
+            // Ensure value is in range [0, 1]
+            value = Math.max(0, Math.min(1, value));
+
+            // Calculate which segment of the gradient we're in
+            const numSegments = HEAT_COLORS.length - 1;
+            const segment = value * numSegments;
+            const index = Math.floor(segment);
+
+            // Get the two colors to interpolate between
+            const color1 = HEAT_COLORS[index];
+            const color2 = HEAT_COLORS[Math.min(index + 1, HEAT_COLORS.length - 1)];
+
+            // Calculate interpolation factor
+            const factor = segment - index;
+
+            // Interpolate between the two colors
+            return [
+                Math.round(color1[0] + factor * (color2[0] - color1[0])),
+                Math.round(color1[1] + factor * (color2[1] - color1[1])),
+                Math.round(color1[2] + factor * (color2[2] - color1[2]))
+            ];
+        }
+
+        // Animation loop
+        function animateSimulation() {
+            simTime += TIME_STEP;
+            simTimeEl.textContent = simTime.toFixed(2);
+
+            updateParticles();
+            drawParticles();
+
+            animationId = requestAnimationFrame(animateSimulation);
+        }
+
+        // Button event handlers
+        startBtn.addEventListener('click', () => {
+            if (!isRunning) {
+                isRunning = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                animationId = requestAnimationFrame(animateSimulation);
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (isRunning) {
+                isRunning = false;
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                cancelAnimationFrame(animationId);
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            if (isRunning) {
+                isRunning = false;
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                cancelAnimationFrame(animationId);
+            }
+            initSimulation();
+        });
+
+        // Initialize on load
+        window.addEventListener('load', initSimulation);
+    </script>
+</body>
+</html>
