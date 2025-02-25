@@ -3,206 +3,346 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vector and matrix calculator</title>
+    <title>Vector and Matrix Calculator</title>
     <style>
+        :root {
+            --primary: #3a86ff;
+            --primary-dark: #2667cc;
+            --secondary: #8338ec;
+            --success: #06d6a0;
+            --warning: #ffbe0b;
+            --danger: #ff006e;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray-100: #f8f9fa;
+            --gray-200: #e9ecef;
+            --gray-300: #dee2e6;
+            --gray-400: #ced4da;
+            --gray-500: #adb5bd;
+            --gray-800: #343a40;
+            --border-radius: 8px;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            max-width: 1200px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1100px;
             margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--dark);
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            font-size: 2rem;
+            letter-spacing: -0.5px;
         }
 
         .controls {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
         }
 
         button {
-            padding: 8px 16px;
-            font-size: 16px;
+            padding: 0.625rem 1.25rem;
+            font-size: 0.9rem;
+            font-weight: 500;
             cursor: pointer;
-            background-color: #4CAF50;
+            background-color: var(--primary);
             color: white;
             border: none;
-            border-radius: 4px;
-            transition: background-color 0.3s;
+            border-radius: var(--border-radius);
+            transition: var(--transition);
+            box-shadow: var(--shadow);
         }
 
         button:hover {
-            background-color: #45a049;
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        button.active {
+            background-color: var(--secondary);
         }
 
         .calculator {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
             background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
         }
 
-        .vector-scalar-row {
+        .calculator-header {
+            background-color: var(--gray-200);
+            padding: 1rem;
+            border-bottom: 1px solid var(--gray-300);
+        }
+
+        .calculator-content {
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .calculator-row {
             grid-column: 1 / -1;
-            display: flex;
-            justify-content: space-around;
-            align-items: flex-start;
-            gap: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-top: 1rem;
         }
 
         .matrix-container, .vector-container, .scalar-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
-        }
-
-        .matrix {
-            display: grid;
-            gap: 5px;
-        }
-
-        .vector {
-            display: grid;
-            gap: 5px;
-        }
-
-        input {
-            width: 50px;
-            height: 30px;
-            text-align: center;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            gap: 0.75rem;
         }
 
         .matrix-label, .vector-label, .scalar-label {
-            font-weight: bold;
-            font-size: 18px;
-            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--gray-800);
+            font-size: 1.1rem;
         }
 
-        .hidden {
-            display: none;
+        .matrix, .vector {
+            display: grid;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background-color: var(--gray-100);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--gray-300);
+        }
+
+        input {
+            width: 3.5rem;
+            height: 2.5rem;
+            text-align: center;
+            border: 1px solid var(--gray-300);
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: var(--transition);
+        }
+
+        /* Adjust input size for 4x4 */
+        body.dimension-4 .matrix input {
+            width: 3.25rem;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(58, 134, 255, 0.2);
         }
 
         .results {
             background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .results-header {
+            background-color: var(--primary);
+            color: white;
+            padding: 1rem;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .results-content {
+            padding: 1.5rem;
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
         }
 
         .result-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background-color: var(--gray-100);
+            border-radius: var(--border-radius);
+            transition: var(--transition);
+            border: 1px solid var(--gray-300);
+        }
+
+        .result-container:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow);
         }
 
         .result-label {
-            font-weight: bold;
-            font-size: 16px;
-            color: #333;
+            font-weight: 600;
+            color: var(--gray-800);
         }
 
         .result-matrix, .result-vector {
             display: grid;
-            gap: 5px;
-            background-color: #f8f8f8;
-            padding: 10px;
-            border-radius: 4px;
+            gap: 0.25rem;
+            padding: 0.5rem;
+            background-color: white;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--gray-300);
         }
 
         .result-cell {
-            width: 50px;
-            height: 30px;
+            width: 2.75rem;
+            height: 2.25rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            background-color: #fff;
-            border: 1px solid #ddd;
+            background-color: var(--light);
+            border: 1px solid var(--gray-300);
             border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Make cells in 4x4 matrices slightly smaller */
+        body.dimension-4 .result-cell {
+            width: 2.5rem;
+            height: 2.25rem;
+            font-size: 0.75rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .calculator-content,
+            .calculator-row,
+            .results-content {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .controls {
+                flex-wrap: wrap;
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1000px) {
+            .results-content {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Vector and Matrix Calculator</h1>
+    <div class="container">
+        <h1>Vector and Matrix Calculator</h1>
 
-    <div class="controls">
-        <button onclick="setDimension(2)">2-dimensional</button>
-        <button onclick="setDimension(3)">3-dimensional</button>
-        <button onclick="setDimension(4)">4-dimensional</button>
-    </div>
-
-    <div id="calculator" class="calculator hidden">
-        <div class="matrix-container">
-            <div class="matrix-label">Matrix M</div>
-            <div id="matrix-m" class="matrix"></div>
+        <div class="controls">
+            <button id="btn-2d" onclick="setDimension(2)">2×2 Dimension</button>
+            <button id="btn-3d" onclick="setDimension(3)">3×3 Dimension</button>
+            <button id="btn-4d" onclick="setDimension(4)">4×4 Dimension</button>
         </div>
 
-        <div class="matrix-container">
-            <div class="matrix-label">Matrix N</div>
-            <div id="matrix-n" class="matrix"></div>
-        </div>
-
-        <div class="vector-scalar-row">
-            <div class="vector-container">
-                <div class="vector-label">Vector v</div>
-                <div id="vector-v" class="vector"></div>
+        <div id="calculator" class="calculator hidden">
+            <div class="calculator-header">
+                <h2>Input Values</h2>
             </div>
+            <div class="calculator-content">
+                <div class="matrix-container">
+                    <div class="matrix-label">Matrix M</div>
+                    <div id="matrix-m" class="matrix"></div>
+                </div>
 
-            <div class="vector-container">
-                <div class="vector-label">Vector w</div>
-                <div id="vector-w" class="vector"></div>
+                <div class="matrix-container">
+                    <div class="matrix-label">Matrix N</div>
+                    <div id="matrix-n" class="matrix"></div>
+                </div>
+
+                <div class="calculator-row">
+                    <div class="vector-container">
+                        <div class="vector-label">Vector v</div>
+                        <div id="vector-v" class="vector"></div>
+                    </div>
+
+                    <div class="vector-container">
+                        <div class="vector-label">Vector w</div>
+                        <div id="vector-w" class="vector"></div>
+                    </div>
+
+                    <div class="scalar-container">
+                        <div class="scalar-label">Scalar λ</div>
+                        <input type="number" id="scalar" value="1" step="any" oninput="updateResults()">
+                    </div>
+                </div>
             </div>
+        </div>
 
-            <div class="scalar-container">
-                <div class="scalar-label">Scalar λ</div>
-                <input type="number" id="scalar" value="1" step="any" oninput="updateResults()">
+        <div id="results" class="results hidden">
+            <div class="results-header">
+                Results
             </div>
-        </div>
-    </div>
+            <div class="results-content">
+                <div class="result-container">
+                    <div class="result-label">M + N</div>
+                    <div id="result-m-plus-n" class="result-matrix"></div>
+                </div>
 
-    <div id="results" class="results hidden">
-        <div class="result-container">
-            <div class="result-label">M + N</div>
-            <div id="result-m-plus-n" class="result-matrix"></div>
-        </div>
+                <div class="result-container">
+                    <div class="result-label">M × N</div>
+                    <div id="result-m-times-n" class="result-matrix"></div>
+                </div>
 
-        <div class="result-container">
-            <div class="result-label">M × N</div>
-            <div id="result-m-times-n" class="result-matrix"></div>
-        </div>
+                <div class="result-container">
+                    <div class="result-label">M × v</div>
+                    <div id="result-m-times-v" class="result-vector"></div>
+                </div>
 
-        <div class="result-container">
-            <div class="result-label">M × v</div>
-            <div id="result-m-times-v" class="result-vector"></div>
-        </div>
+                <div class="result-container">
+                    <div class="result-label">N × w</div>
+                    <div id="result-n-times-w" class="result-vector"></div>
+                </div>
 
-        <div class="result-container">
-            <div class="result-label">N × w</div>
-            <div id="result-n-times-w" class="result-vector"></div>
-        </div>
+                <div class="result-container">
+                    <div class="result-label">λv</div>
+                    <div id="result-lambda-v" class="result-vector"></div>
+                </div>
 
-        <div class="result-container">
-            <div class="result-label">λv</div>
-            <div id="result-lambda-v" class="result-vector"></div>
-        </div>
+                <div class="result-container">
+                    <div class="result-label">λw</div>
+                    <div id="result-lambda-w" class="result-vector"></div>
+                </div>
 
-        <div class="result-container">
-            <div class="result-label">λw</div>
-            <div id="result-lambda-w" class="result-vector"></div>
-        </div>
-
-        <div class="result-container">
-            <div class="result-label">v + w</div>
-            <div id="result-v-plus-w" class="result-vector"></div>
+                <div class="result-container">
+                    <div class="result-label">v + w</div>
+                    <div id="result-v-plus-w" class="result-vector"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -240,6 +380,7 @@
                     input.step = 'any';
                     input.value = isIdentity ? (i === j ? 1 : 0) : 0;
                     input.oninput = updateResults;
+                    input.placeholder = `${i+1},${j+1}`;
                     matrix.appendChild(input);
                 }
             }
@@ -256,6 +397,7 @@
                 input.step = 'any';
                 input.value = defaultValue;
                 input.oninput = updateResults;
+                input.placeholder = `${i+1}`;
                 vector.appendChild(input);
             }
         }
@@ -333,10 +475,20 @@
         }
 
         function setDimension(dim) {
+            // Update active button state
+            document.querySelectorAll('.controls button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`btn-${dim}d`).classList.add('active');
+
             const calculator = document.getElementById('calculator');
             const results = document.getElementById('results');
             calculator.classList.remove('hidden');
             results.classList.remove('hidden');
+
+            // Set dimension class on body for CSS targeting
+            document.body.classList.remove('dimension-2', 'dimension-3', 'dimension-4');
+            document.body.classList.add(`dimension-${dim}`);
 
             createMatrix('matrix-m', dim, true);  // Identity matrix
             createMatrix('matrix-n', dim);        // Zero matrix
