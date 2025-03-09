@@ -2,18 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TI-SILLY Calculator</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+
+        html, body {
+            touch-action: manipulation;
+            height: 100%;
+        }
 
         body {
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
             background-color: #f5f5f5;
             font-family: Arial, sans-serif;
+            padding: 10px;
         }
 
         .calculator {
@@ -39,6 +44,9 @@
             letter-spacing: 2px;
             text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
         }
+
+        .cat-mode .calculator-name { color: #ffe6f2; }
+        .blub-mode .calculator-name { color: #e3f2fd; }
 
         .display {
             background-color: #222;
@@ -97,10 +105,27 @@
         .button:hover { background-color: #ff8a80; }
         .button:active { transform: scale(0.95); background-color: #c62828; }
 
+        .cat-mode .button { background-color: #f06292; }
+        .cat-mode .button:hover { background-color: #f48fb1; }
+        .cat-mode .button:active { background-color: #ad1457; }
+
+        .blub-mode .button { background-color: #64b5f6; }
+        .blub-mode .button:hover { background-color: #90caf9; }
+        .blub-mode .button:active { background-color: #1565c0; }
+
         .button.operation { background-color: #9a0007; font-weight: bold; }
         .button.operation:hover { background-color: #c62828; }
 
+        .cat-mode .button.operation { background-color: #c2185b; }
+        .cat-mode .button.operation:hover { background-color: #e91e63; }
+
+        .blub-mode .button.operation { background-color: #1976d2; }
+        .blub-mode .button.operation:hover { background-color: #2196f3; }
+
         .button.equals, .button.clear { background-color: #9a0007; font-weight: bold; }
+
+        .cat-mode .button.equals, .cat-mode .button.clear { background-color: #c2185b; }
+        .blub-mode .button.equals, .blub-mode .button.clear { background-color: #1976d2; }
 
         .button.fun-mode { background-color: #7b1fa2; font-weight: bold; }
         .button.fun-mode:hover { background-color: #9c27b0; }
@@ -128,6 +153,52 @@
         }
 
         .shaking { animation: shake 0.5s; }
+
+        /* Mobile-specific styles */
+        @media (max-width: 480px) {
+            .calculator {
+                width: 98vw;
+                max-width: 430px;
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+
+            .calculator-name {
+                font-size: 20px;
+                margin-bottom: 10px;
+            }
+
+            .display {
+                height: 100px;
+                margin-bottom: 15px;
+            }
+
+            .display-value {
+                font-size: 32px;
+            }
+
+            .buttons {
+                grid-gap: 8px;
+            }
+
+            .button {
+                height: 45px;
+                font-size: 16px;
+                border-radius: 6px;
+            }
+        }
+
+        /* iPhone-specific fixes */
+        @media (max-width: 375px) {
+            .button {
+                height: 40px;
+                font-size: 14px;
+            }
+
+            .display {
+                height: 90px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -151,7 +222,7 @@
         let blubMode = false;
         let calculatorSize = 1;
 
-        // Error messages and function mappings
+        // Error messages collection
         const errorMessages = {
             divByZero: "Div by 0 error",
             blub: "Blub Error",
@@ -159,9 +230,9 @@
             customBlock: "Invalid Custom...EndCustm block error",
             imaginary: "ERROR: Imaginary number detected! i = √-1",
             overflow: "OVERFLOW ERROR: Number too large for calculator's quantum memory!",
-            apps: "VALIDATION ERROR:  I do not feel validated right now.",
             infinity: "ERROR: Calculation reached infinity! Universe imploding...",
             manners: "MANNERS ERROR: Say excuse me!",
+            catalog: "ERROR: Catalog not available in SILLY mode!",
             etiquette: "ETIQUETTE ERROR: Please say the magic word!",
             dialog: "Invalid in dialog...end dialog block",
             poop: "Eww! Poop! 💩",
@@ -171,9 +242,12 @@
             quantum: "QUANTUM ERROR: Function exists in superposition of correct and incorrect states.",
             trigSin: "TRIG ERROR: Sine of your problems is undefined!",
             trigCos: "TRIG ERROR: Cosine waves crashed the calculator!",
-            trigTan: "TRIG ERROR: Tangent line escaped to infinity!"
+            trigTan: "TRIG ERROR: Tangent line escaped to infinity!",
+            apps: "VALIDATION ERROR: Calculator cannot run this app!",
+            boop: "Boop! 👉👃"
         };
 
+        // Random error collections
         const randomErrors = {
             prime: [
                 "ERROR: Prime factorization would take 7 billion years!",
@@ -231,7 +305,7 @@
                 { text: '5', action: 'append', value: '5' },
                 { text: '6', action: 'append', value: '6' },
                 { text: '−', className: 'operation', action: 'append', value: '-' },
-                { text: '💩', className: 'poop', action: 'poopButton' }
+                { text: '💩', className: 'poop', action: 'errorHandler', value: 'poop' }
             ],
             // Row 4
             [
@@ -239,7 +313,7 @@
                 { text: '2', action: 'append', value: '2' },
                 { text: '3', action: 'append', value: '3' },
                 { text: '+', className: 'operation', action: 'append', value: '+' },
-                { text: 'Burp!', className: 'burp', action: 'burpButton' }
+                { text: 'Burp!', className: 'burp', action: 'errorHandler', value: 'manners' }
             ],
             // Row 5
             [
@@ -247,41 +321,178 @@
                 { text: '.', action: 'append', value: '.' },
                 { text: '⌫', action: 'backspace' },
                 { text: '=', className: 'equals', action: 'calculate' },
-                { text: 'Fart!', className: 'fart', action: 'fartButton' }
+                { text: 'Fart!', className: 'fart', action: 'errorHandler', value: 'fart' }
             ],
             // Row 6
             [
                 { text: '11', action: 'append', value: '11' },
-                { text: 'Matrix', className: 'fun-mode', action: 'matrixError' },
-                { text: 'Quantum', className: 'fun-mode', action: 'quantumError' },
-                { text: 'Surreal', className: 'fun-mode', action: 'surrealError' },
-                { text: 'Log', className: 'fun-mode', action: 'logarithmError' }
+                { text: 'Matrix', className: 'fun-mode', action: 'errorHandler', value: 'matrix' },
+                { text: 'Quantum', className: 'fun-mode', action: 'errorHandler', value: 'quantum' },
+                { text: 'Surreal', className: 'fun-mode', action: 'errorHandler', value: 'surreal' },
+                { text: 'Log', className: 'fun-mode', action: 'errorHandler', value: 'logarithm' }
             ],
             // Row 7
             [
-                { text: '√-1', className: 'fun-mode', action: 'squareRootError' },
-                { text: '∞', className: 'fun-mode', action: 'infinityError' },
-                { text: 'Prime', className: 'fun-mode', action: 'primeError' },
-                { text: 'Apps', className: 'fun-mode', action: 'appsError' },
-                { text: 'Random', className: 'fun-mode', action: 'randomError' }
+                { text: '√-1', className: 'fun-mode', action: 'errorHandler', value: 'imaginary' },
+                { text: '∞', className: 'fun-mode', action: 'errorHandler', value: 'infinity' },
+                { text: 'Prime', className: 'fun-mode', action: 'errorHandler', value: 'prime' },
+                { text: 'Apps', className: 'fun-mode', action: 'errorHandler', value: 'apps' },
+                { text: 'Random', className: 'fun-mode', action: 'errorHandler', value: 'advanced' }
             ],
             // Row 8
             [
                 { text: 'Spin', className: 'fun-mode', action: 'spinCalculator' },
                 { text: 'Reset', className: 'fun-mode', action: 'resetCalculator' },
-                { text: 'Manners', className: 'fun-mode', action: 'mannersError' },
-                { text: 'Tickle', className: 'fun-mode', action: 'tickleButton' },
-                { text: 'Dino', className: 'fun-mode', action: 'dinosaurMode' }
+                { text: 'Catalog', className: 'fun-mode', action: 'errorHandler', value: 'catalog' }, // Changed from "Manners" to "Catalog"
+                { text: 'Tickle', className: 'fun-mode', action: 'errorHandler', value: 'tickle' },
+                { text: 'Dino', className: 'fun-mode', action: 'errorHandler', value: 'dino' }
             ],
             // Row 9
             [
                 { text: 'sin', className: 'operation', action: 'trigError', value: 'sin' },
                 { text: 'cos', className: 'operation', action: 'trigError', value: 'cos' },
                 { text: 'tan', className: 'operation', action: 'trigError', value: 'tan' },
-                { text: 'Program', className: 'fun-mode', action: 'programError' },
-                { text: 'Boop', className: 'fun-mode', action: 'boopButton' }
+                { text: 'Program', className: 'fun-mode', action: 'errorHandler', value: 'dialog' },
+                { text: 'Boop', className: 'fun-mode', action: 'errorHandler', value: 'boop' }
             ]
         ];
+
+        // Core error handling function
+        function showError(errorType, options = {}) {
+            // Get error message
+            let message;
+            if (options.message) {
+                message = options.message;
+            } else if (typeof errorType === 'string' && errorMessages[errorType]) {
+                message = errorMessages[errorType];
+            } else if (typeof errorType === 'string' && randomErrors[errorType]) {
+                message = getRandomError(errorType);
+            } else {
+                message = "Unknown Error";
+            }
+
+            displayValue = message;
+            updateDisplay();
+
+            // Handle visual effects
+            if (options.color) {
+                changeCalculatorColor(options.color, options.duration || 1000);
+            }
+
+            switch (options.effect) {
+                case 'matrix':
+                    let times = 0;
+                    const matrixFlash = setInterval(() => {
+                        calculator.style.backgroundColor = times % 2 === 0 ? "#00FF00" : "#000000";
+                        display.style.color = times % 2 === 0 ? "#000000" : "#00FF00";
+                        times++;
+                        if (times > 6) {
+                            clearInterval(matrixFlash);
+                            calculator.style.backgroundColor = catMode ? "#f48fb1" : (blubMode ? "#42a5f5" : "#d32f2f");
+                            display.style.color = "white";
+                        }
+                    }, 200);
+                    break;
+
+                case 'quantum':
+                    let opacity = 1;
+                    const quantumFlicker = setInterval(() => {
+                        opacity = opacity === 1 ? 0.3 : 1;
+                        calculator.style.opacity = opacity;
+                        if (opacity === 1 && Math.random() > 0.5) {
+                            clearInterval(quantumFlicker);
+                        }
+                    }, 100);
+                    setTimeout(() => calculator.style.opacity = 1, 2000);
+                    break;
+
+                case 'wave':
+                    let waveAngle = 0;
+                    const wave = setInterval(() => {
+                        waveAngle += 5;
+                        calculator.style.transform = `rotate(${5 * Math.sin(waveAngle * Math.PI / 180)}deg) scale(${calculatorSize})`;
+                        if (waveAngle > 360) {
+                            clearInterval(wave);
+                            calculator.style.transform = `rotate(0deg) scale(${calculatorSize})`;
+                        }
+                    }, 50);
+                    break;
+
+                case 'tickle':
+                    let jiggles = 0;
+                    const tickleInterval = setInterval(() => {
+                        const xOffset = Math.random() * 10 - 5;
+                        const yOffset = Math.random() * 10 - 5;
+                        calculator.style.transform = `translate(${xOffset}px, ${yOffset}px) scale(${calculatorSize})`;
+                        jiggles++;
+                        if (jiggles > 20) {
+                            clearInterval(tickleInterval);
+                            calculator.style.transform = `scale(${calculatorSize})`;
+                        }
+                    }, 50);
+                    break;
+
+                case 'stomp':
+                    let stomps = 0;
+                    const stompInterval = setInterval(() => {
+                        calculator.style.transform = stomps % 2 === 0 ?
+                            `translateY(10px) scale(${calculatorSize})` :
+                            `translateY(0px) scale(${calculatorSize})`;
+                        stomps++;
+                        if (stomps > 6) {
+                            clearInterval(stompInterval);
+                            calculator.style.transform = `scale(${calculatorSize})`;
+                        }
+                    }, 200);
+                    break;
+
+                case 'trig':
+                    const func = options.trigType || 'sin';
+                    let angle = 0;
+                    const amplitude = func === 'sin' ? 10 : (func === 'cos' ? 5 : 15);
+                    const period = func === 'sin' ? 40 : (func === 'cos' ? 30 : 50);
+
+                    const trigWave = setInterval(() => {
+                        angle += 10;
+                        if (func === 'sin') {
+                            calculator.style.transform = `translateY(${amplitude * Math.sin(angle * Math.PI / 180)}px)`;
+                        } else if (func === 'cos') {
+                            calculator.style.transform = `translateX(${amplitude * Math.cos(angle * Math.PI / 180)}px)`;
+                        } else { // tan
+                            const value = Math.tan((angle % 90) * Math.PI / 180);
+                            if (!isNaN(value) && isFinite(value)) {
+                                calculator.style.transform = `rotate(${value}deg)`;
+                            }
+                        }
+
+                        if (angle > period * 2) {
+                            clearInterval(trigWave);
+                            calculator.style.transform = `scale(${calculatorSize})`;
+                        }
+                    }, 50);
+                    break;
+
+                default:
+                    // Default effect is shake
+                    shakeCalculator();
+            }
+        }
+
+        // Unified error handler for most buttons
+        function errorHandler(errorType) {
+            const effectMap = {
+                matrix: { effect: 'matrix' },
+                quantum: { effect: 'quantum' },
+                surreal: { effect: 'wave' },
+                tickle: { effect: 'tickle' },
+                dino: { effect: 'stomp', color: "#4CAF50" },
+                poop: { color: "#795548" },
+                fart: { color: "#ff9800" },
+                boop: { color: "#9C27B0", duration: 500 }
+            };
+
+            showError(errorType, effectMap[errorType] || {});
+        }
 
         // Generate buttons dynamically
         function createButtons() {
@@ -294,6 +505,8 @@
                     // Set up click handler based on action type
                     if (button.action === 'append') {
                         buttonEl.onclick = () => appendToDisplay(button.value);
+                    } else if (button.action === 'errorHandler') {
+                        buttonEl.onclick = () => errorHandler(button.value);
                     } else if (button.action === 'trigError') {
                         buttonEl.onclick = () => trigError(button.value);
                     } else {
@@ -326,18 +539,14 @@
         function appendToDisplay(value) {
             // Blub mode error
             if (blubMode) {
-                displayValue = errorMessages.blub;
-                updateDisplay();
-                shakeCalculator();
+                showError('blub');
                 return;
             }
 
             // Check for "11" error
             if ((displayValue.includes('11') && value !== '.') ||
                 (displayValue + value).includes('11')) {
-                displayValue = errorMessages.tooManyOnes;
-                updateDisplay();
-                shakeCalculator();
+                showError('tooManyOnes');
                 return;
             }
 
@@ -368,41 +577,25 @@
             try {
                 // Check for division by zero
                 if (displayValue.includes('/0')) {
-                    displayValue = errorMessages.divByZero;
-                    updateDisplay();
-                    shakeCalculator();
+                    showError('divByZero');
                     return;
                 }
 
                 // Blub mode error
                 if (blubMode) {
-                    displayValue = errorMessages.blub;
-                    updateDisplay();
-                    shakeCalculator();
+                    showError('blub');
                     return;
                 }
 
-                // Check for 2/7 special error
+                // Check for 2/7
                 if (displayValue === '2/7' || displayValue === '2÷7') {
-                    displayValue = errorMessages.customBlock;
-                    updateDisplay();
-                    shakeCalculator();
-                    return;
-                }
-
-                // Check for really big numbers (overflow)
-                if (displayValue.length > 15 || displayValue.includes('9999')) {
-                    displayValue = errorMessages.overflow;
-                    updateDisplay();
-                    shakeCalculator();
+                    showError('customBlock');
                     return;
                 }
 
                 // Random chance for prime error
                 if (Math.random() < 0.1) {
-                    displayValue = getRandomError('prime');
-                    updateDisplay();
-                    shakeCalculator();
+                    showError('prime');
                     return;
                 }
 
@@ -419,9 +612,7 @@
 
                 // Check for infinity
                 if (result === Infinity || result === -Infinity) {
-                    displayValue = errorMessages.infinity;
-                    updateDisplay();
-                    shakeCalculator();
+                    showError('infinity');
                     return;
                 }
 
@@ -430,7 +621,7 @@
                     displayValue += " Meow";
                 }
             } catch (error) {
-                displayValue = getRandomError('advanced');
+                showError('advanced');
             }
             updateDisplay();
         }
@@ -484,130 +675,13 @@
         }
 
         function changeCalculatorColor(color, duration = 1000) {
-            const originalColor = calculator.style.backgroundColor;
             calculator.style.backgroundColor = color;
             setTimeout(() => {
                 calculator.style.backgroundColor = catMode ? "#f48fb1" : (blubMode ? "#42a5f5" : "#d32f2f");
             }, duration);
         }
 
-        // Fun button functions
-        function poopButton() {
-            displayValue = errorMessages.poop;
-            updateDisplay();
-            changeCalculatorColor("#795548");
-        }
-
-        function burpButton() {
-            displayValue = errorMessages.manners;
-            updateDisplay();
-            shakeCalculator();
-        }
-
-        function fartButton() {
-            displayValue = errorMessages.fart;
-            updateDisplay();
-            shakeCalculator();
-            changeCalculatorColor("#ff9800");
-        }
-
-        function matrixError() {
-            displayValue = errorMessages.matrix;
-            updateDisplay();
-            shakeCalculator();
-
-            let times = 0;
-            const matrixFlash = setInterval(() => {
-                calculator.style.backgroundColor = times % 2 === 0 ? "#00FF00" : "#000000";
-                display.style.color = times % 2 === 0 ? "#000000" : "#00FF00";
-                times++;
-                if (times > 6) {
-                    clearInterval(matrixFlash);
-                    calculator.style.backgroundColor = catMode ? "#f48fb1" : (blubMode ? "#42a5f5" : "#d32f2f");
-                    display.style.color = "white";
-                }
-            }, 200);
-        }
-
-        function quantumError() {
-            displayValue = errorMessages.quantum;
-            updateDisplay();
-
-            let opacity = 1;
-            const quantumFlicker = setInterval(() => {
-                opacity = opacity === 1 ? 0.3 : 1;
-                calculator.style.opacity = opacity;
-                if (opacity === 1 && Math.random() > 0.5) {
-                    clearInterval(quantumFlicker);
-                }
-            }, 100);
-
-            setTimeout(() => calculator.style.opacity = 1, 2000);
-        }
-
-        function surrealError() {
-            displayValue = getRandomError('surreal');
-            updateDisplay();
-
-            let angle = 0;
-            const wave = setInterval(() => {
-                angle += 5;
-                calculator.style.transform = `rotate(${5 * Math.sin(angle * Math.PI / 180)}deg) scale(${calculatorSize})`;
-                if (angle > 360) {
-                    clearInterval(wave);
-                    calculator.style.transform = `rotate(0deg) scale(${calculatorSize})`;
-                }
-            }, 50);
-        }
-
-        function logarithmError() {
-            displayValue = getRandomError('logarithm');
-            updateDisplay();
-            shakeCalculator();
-        }
-
-        function mannersError() {
-            displayValue = errorMessages.etiquette;
-            updateDisplay();
-            shakeCalculator();
-        }
-
-        function tickleButton() {
-            displayValue = errorMessages.tickle;
-            updateDisplay();
-
-            let jiggles = 0;
-            const tickleInterval = setInterval(() => {
-                const xOffset = Math.random() * 10 - 5;
-                const yOffset = Math.random() * 10 - 5;
-                calculator.style.transform = `translate(${xOffset}px, ${yOffset}px) scale(${calculatorSize})`;
-                jiggles++;
-                if (jiggles > 20) {
-                    clearInterval(tickleInterval);
-                    calculator.style.transform = `scale(${calculatorSize})`;
-                }
-            }, 50);
-        }
-
-        function dinosaurMode() {
-            displayValue = getRandomError('dino');
-            updateDisplay();
-
-            changeCalculatorColor("#4CAF50");
-
-            let stomps = 0;
-            const stompInterval = setInterval(() => {
-                calculator.style.transform = stomps % 2 === 0 ?
-                    `translateY(10px) scale(${calculatorSize})` :
-                    `translateY(0px) scale(${calculatorSize})`;
-                stomps++;
-                if (stomps > 6) {
-                    clearInterval(stompInterval);
-                    calculator.style.transform = `scale(${calculatorSize})`;
-                }
-            }, 200);
-        }
-
+        // Specific functions that need special handling
         function spinCalculator() {
             calculator.style.transition = "transform 1s";
             calculator.style.transform = `rotate(360deg) scale(${calculatorSize})`;
@@ -627,84 +701,11 @@
             updateDisplay();
         }
 
-        function squareRootError() {
-            displayValue = errorMessages.imaginary;
-            updateDisplay();
-            shakeCalculator();
-        }
-
-        function infinityError() {
-            displayValue = errorMessages.infinity;
-            updateDisplay();
-            shakeCalculator();
-        }
-
-        function primeError() {
-            displayValue = getRandomError('prime');
-            updateDisplay();
-            shakeCalculator();
-        }
-
-        function overflowError() {
-            displayValue = errorMessages.overflow;
-            updateDisplay();
-            shakeCalculator();
-        }
-
-        function randomError() {
-            displayValue = getRandomError('advanced');
-            updateDisplay();
-            shakeCalculator();
-        }
-
-        function appsError() {
-            displayValue = errorMessages.apps;
-            updateDisplay();
-            shakeCalculator();
-        }
-
-        function boopButton() {
-            displayValue = "Boop! 👉👃";
-            updateDisplay();
-
-            calculator.classList.add('shaking');
-            setTimeout(() => calculator.classList.remove('shaking'), 200);
-
-            changeCalculatorColor("#9C27B0", 500);
-        }
-
-        function programError() {
-            displayValue = errorMessages.dialog;
-            updateDisplay();
-            shakeCalculator();
-        }
-
         function trigError(func) {
-            displayValue = errorMessages[`trig${func.charAt(0).toUpperCase() + func.slice(1)}`];
-            updateDisplay();
-
-            let angle = 0;
-            const amplitude = func === 'sin' ? 10 : (func === 'cos' ? 5 : 15);
-            const period = func === 'sin' ? 40 : (func === 'cos' ? 30 : 50);
-
-            const trigWave = setInterval(() => {
-                angle += 10;
-                if (func === 'sin') {
-                    calculator.style.transform = `translateY(${amplitude * Math.sin(angle * Math.PI / 180)}px)`;
-                } else if (func === 'cos') {
-                    calculator.style.transform = `translateX(${amplitude * Math.cos(angle * Math.PI / 180)}px)`;
-                } else { // tan
-                    const value = Math.tan((angle % 90) * Math.PI / 180);
-                    if (!isNaN(value) && isFinite(value)) {
-                        calculator.style.transform = `rotate(${value}deg)`;
-                    }
-                }
-
-                if (angle > period * 2) {
-                    clearInterval(trigWave);
-                    calculator.style.transform = `scale(${calculatorSize})`;
-                }
-            }, 50);
+            showError(`trig${func.charAt(0).toUpperCase() + func.slice(1)}`, {
+                effect: 'trig',
+                trigType: func
+            });
         }
 
         // Initialize
