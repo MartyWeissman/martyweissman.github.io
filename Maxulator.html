@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TI-SILLY Calculator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+        }
+
+        .calculator {
+            width: 430px;
+            background-color: #d32f2f;
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+            padding: 25px;
+            transition: all 0.5s;
+            margin-bottom: 30px;
+        }
+
+        .calculator.cat-mode { background-color: #f48fb1; }
+        .calculator.blub-mode { background-color: #42a5f5; }
+
+        .calculator-name {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            color: white;
+            margin-bottom: 15px;
+            font-family: 'Digital', 'Courier New', monospace;
+            letter-spacing: 2px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .display {
+            background-color: #222;
+            height: 120px;
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            text-align: right;
+            color: white;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .cat-mode .display { background-color: #880e4f; }
+        .blub-mode .display { background-color: #0d47a1; }
+
+        .display-value {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 40px;
+        }
+
+        .mode-indicator {
+            position: absolute;
+            top: 5px;
+            left: 15px;
+            font-size: 14px;
+            color: #ffeb3b;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-gap: 14px;
+        }
+
+        .button {
+            height: 50px;
+            background-color: #ff6659;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            cursor: pointer;
+            color: white;
+            transition: all 0.15s;
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .button:hover { background-color: #ff8a80; }
+        .button:active { transform: scale(0.95); background-color: #c62828; }
+
+        .button.operation { background-color: #9a0007; font-weight: bold; }
+        .button.operation:hover { background-color: #c62828; }
+
+        .button.equals, .button.clear { background-color: #9a0007; font-weight: bold; }
+
+        .button.fun-mode { background-color: #7b1fa2; font-weight: bold; }
+        .button.fun-mode:hover { background-color: #9c27b0; }
+
+        .button.poop { background-color: #795548; }
+        .button.poop:hover { background-color: #8d6e63; }
+
+        .button.burp { background-color: #4caf50; }
+        .button.burp:hover { background-color: #66bb6a; }
+
+        .button.fart { background-color: #ff9800; }
+        .button.fart:hover { background-color: #ffa726; }
+
+        @keyframes shake {
+            0%, 100% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+        }
+
+        .shaking { animation: shake 0.5s; }
+    </style>
+</head>
+<body>
+    <div class="calculator" id="calculator">
+        <div class="calculator-name">TI-SILLY</div>
+        <div class="display">
+            <div class="mode-indicator" id="modeIndicator"></div>
+            <div class="display-value" id="display">0</div>
+        </div>
+        <div class="buttons" id="buttons"></div>
+    </div>
+
+    <script>
+        // State variables
+        let displayValue = '0';
+        const display = document.getElementById('display');
+        const calculator = document.getElementById('calculator');
+        const modeIndicator = document.getElementById('modeIndicator');
+        const buttonsContainer = document.getElementById('buttons');
+        let catMode = false;
+        let blubMode = false;
+        let calculatorSize = 1;
+
+        // Error messages and function mappings
+        const errorMessages = {
+            divByZero: "Div by 0 error",
+            blub: "Blub Error",
+            tooManyOnes: "Too many ones error",
+            customBlock: "Invalid Custom...EndCustm block error",
+            imaginary: "ERROR: Imaginary number detected! i = √-1",
+            overflow: "OVERFLOW ERROR: Number too large for calculator's quantum memory!",
+            apps: "VALIDATION ERROR:  I do not feel validated right now.",
+            infinity: "ERROR: Calculation reached infinity! Universe imploding...",
+            manners: "MANNERS ERROR: Say excuse me!",
+            etiquette: "ETIQUETTE ERROR: Please say the magic word!",
+            dialog: "Invalid in dialog...end dialog block",
+            poop: "Eww! Poop! 💩",
+            fart: "PFFFFFFT!",
+            tickle: "HEHE! That tickles! Stop it!",
+            matrix: "ERROR: Matrix determinant is zero! The system cannot be solved.",
+            quantum: "QUANTUM ERROR: Function exists in superposition of correct and incorrect states.",
+            trigSin: "TRIG ERROR: Sine of your problems is undefined!",
+            trigCos: "TRIG ERROR: Cosine waves crashed the calculator!",
+            trigTan: "TRIG ERROR: Tangent line escaped to infinity!"
+        };
+
+        const randomErrors = {
+            prime: [
+                "ERROR: Prime factorization would take 7 billion years!",
+                "ERROR: Calculation interrupted by Riemann Hypothesis!",
+                "ERROR: P versus NP problem detected in algorithm!"
+            ],
+            surreal: [
+                "SURREAL ERROR: Number exists between empty set and infinity!",
+                "SURREAL ERROR: Your number is both smaller AND larger than zero!"
+            ],
+            logarithm: [
+                "DOMAIN ERROR: Cannot compute log(0) or log(negative)!",
+                "MATH ERROR: Log base must be positive and not equal to 1!",
+                "LOG ERROR: Natural log is unnatural!"
+            ],
+            advanced: [
+                "SYNTAX ERROR: Non-Euclidean geometry detected!",
+                "ERROR: Calculation violates laws of thermodynamics!",
+                "ERROR: Algorithm complexity exceeded O(n²)!",
+                "RECURSION ERROR: Stack overflow in math co-processor!",
+                "ERROR: Attempted division by imaginary number!",
+                "ERROR: Calculation caused a time paradox!",
+                "ERROR: Computer became self-aware and refused to calculate!",
+                "ERROR: Answer is 42, but question is unknown!"
+            ],
+            dino: [
+                "RAWR! I'm a Math-o-saurus!",
+                "STOMP! STOMP! Dino math is best math!",
+                "ROOOAR! Tyrannosaurus Arithmetic!",
+                "CHOMP! I ate your numbers!"
+            ]
+        };
+
+        // Button definitions
+        const buttonRows = [
+            // Row 1
+            [
+                { text: 'C', className: 'clear', action: 'clearDisplay' },
+                { text: '(', className: 'operation', action: 'append', value: '(' },
+                { text: ')', className: 'operation', action: 'append', value: ')' },
+                { text: '/', className: 'operation', action: 'append', value: '/' },
+                { text: 'Cat', className: 'fun-mode', action: 'toggleCatMode' }
+            ],
+            // Row 2
+            [
+                { text: '7', action: 'append', value: '7' },
+                { text: '8', action: 'append', value: '8' },
+                { text: '9', action: 'append', value: '9' },
+                { text: '×', className: 'operation', action: 'append', value: '*' },
+                { text: 'Blub', className: 'fun-mode', action: 'toggleBlubMode' }
+            ],
+            // Row 3
+            [
+                { text: '4', action: 'append', value: '4' },
+                { text: '5', action: 'append', value: '5' },
+                { text: '6', action: 'append', value: '6' },
+                { text: '−', className: 'operation', action: 'append', value: '-' },
+                { text: '💩', className: 'poop', action: 'poopButton' }
+            ],
+            // Row 4
+            [
+                { text: '1', action: 'append', value: '1' },
+                { text: '2', action: 'append', value: '2' },
+                { text: '3', action: 'append', value: '3' },
+                { text: '+', className: 'operation', action: 'append', value: '+' },
+                { text: 'Burp!', className: 'burp', action: 'burpButton' }
+            ],
+            // Row 5
+            [
+                { text: '0', action: 'append', value: '0' },
+                { text: '.', action: 'append', value: '.' },
+                { text: '⌫', action: 'backspace' },
+                { text: '=', className: 'equals', action: 'calculate' },
+                { text: 'Fart!', className: 'fart', action: 'fartButton' }
+            ],
+            // Row 6
+            [
+                { text: '11', action: 'append', value: '11' },
+                { text: 'Matrix', className: 'fun-mode', action: 'matrixError' },
+                { text: 'Quantum', className: 'fun-mode', action: 'quantumError' },
+                { text: 'Surreal', className: 'fun-mode', action: 'surrealError' },
+                { text: 'Log', className: 'fun-mode', action: 'logarithmError' }
+            ],
+            // Row 7
+            [
+                { text: '√-1', className: 'fun-mode', action: 'squareRootError' },
+                { text: '∞', className: 'fun-mode', action: 'infinityError' },
+                { text: 'Prime', className: 'fun-mode', action: 'primeError' },
+                { text: 'Apps', className: 'fun-mode', action: 'appsError' },
+                { text: 'Random', className: 'fun-mode', action: 'randomError' }
+            ],
+            // Row 8
+            [
+                { text: 'Spin', className: 'fun-mode', action: 'spinCalculator' },
+                { text: 'Reset', className: 'fun-mode', action: 'resetCalculator' },
+                { text: 'Manners', className: 'fun-mode', action: 'mannersError' },
+                { text: 'Tickle', className: 'fun-mode', action: 'tickleButton' },
+                { text: 'Dino', className: 'fun-mode', action: 'dinosaurMode' }
+            ],
+            // Row 9
+            [
+                { text: 'sin', className: 'operation', action: 'trigError', value: 'sin' },
+                { text: 'cos', className: 'operation', action: 'trigError', value: 'cos' },
+                { text: 'tan', className: 'operation', action: 'trigError', value: 'tan' },
+                { text: 'Program', className: 'fun-mode', action: 'programError' },
+                { text: 'Boop', className: 'fun-mode', action: 'boopButton' }
+            ]
+        ];
+
+        // Generate buttons dynamically
+        function createButtons() {
+            buttonRows.forEach(row => {
+                row.forEach(button => {
+                    const buttonEl = document.createElement('div');
+                    buttonEl.className = button.className ? `button ${button.className}` : 'button';
+                    buttonEl.textContent = button.text;
+
+                    // Set up click handler based on action type
+                    if (button.action === 'append') {
+                        buttonEl.onclick = () => appendToDisplay(button.value);
+                    } else if (button.action === 'trigError') {
+                        buttonEl.onclick = () => trigError(button.value);
+                    } else {
+                        buttonEl.onclick = window[button.action]; // Call function by name
+                    }
+
+                    buttonsContainer.appendChild(buttonEl);
+                });
+            });
+        }
+
+        // Display functions
+        function updateDisplay() {
+            display.textContent = displayValue;
+
+            // Adjust font size based on text length
+            if (displayValue.length > 60) {
+                display.style.fontSize = '14px';
+            } else if (displayValue.length > 40) {
+                display.style.fontSize = '18px';
+            } else if (displayValue.length > 20) {
+                display.style.fontSize = '24px';
+            } else if (displayValue.length > 10) {
+                display.style.fontSize = '30px';
+            } else {
+                display.style.fontSize = '40px';
+            }
+        }
+
+        function appendToDisplay(value) {
+            // Blub mode error
+            if (blubMode) {
+                displayValue = errorMessages.blub;
+                updateDisplay();
+                shakeCalculator();
+                return;
+            }
+
+            // Check for "11" error
+            if ((displayValue.includes('11') && value !== '.') ||
+                (displayValue + value).includes('11')) {
+                displayValue = errorMessages.tooManyOnes;
+                updateDisplay();
+                shakeCalculator();
+                return;
+            }
+
+            if (displayValue === '0' && value !== '.') {
+                displayValue = value;
+            } else {
+                displayValue += value;
+            }
+            updateDisplay();
+        }
+
+        function clearDisplay() {
+            displayValue = '0';
+            updateDisplay();
+        }
+
+        function backspace() {
+            if (displayValue.length === 1 ||
+                (displayValue.length === 2 && displayValue.charAt(0) === '-')) {
+                displayValue = '0';
+            } else {
+                displayValue = displayValue.slice(0, -1);
+            }
+            updateDisplay();
+        }
+
+        function calculate() {
+            try {
+                // Check for division by zero
+                if (displayValue.includes('/0')) {
+                    displayValue = errorMessages.divByZero;
+                    updateDisplay();
+                    shakeCalculator();
+                    return;
+                }
+
+                // Blub mode error
+                if (blubMode) {
+                    displayValue = errorMessages.blub;
+                    updateDisplay();
+                    shakeCalculator();
+                    return;
+                }
+
+                // Check for 2/7 special error
+                if (displayValue === '2/7' || displayValue === '2÷7') {
+                    displayValue = errorMessages.customBlock;
+                    updateDisplay();
+                    shakeCalculator();
+                    return;
+                }
+
+                // Check for really big numbers (overflow)
+                if (displayValue.length > 15 || displayValue.includes('9999')) {
+                    displayValue = errorMessages.overflow;
+                    updateDisplay();
+                    shakeCalculator();
+                    return;
+                }
+
+                // Random chance for prime error
+                if (Math.random() < 0.1) {
+                    displayValue = getRandomError('prime');
+                    updateDisplay();
+                    shakeCalculator();
+                    return;
+                }
+
+                // Replace × with * and − with - for JavaScript eval
+                let expression = displayValue.replace(/×/g, '*').replace(/−/g, '-');
+                let result = eval(expression);
+
+                // Format the result
+                if (Number.isInteger(result)) {
+                    displayValue = result.toString();
+                } else {
+                    displayValue = result.toFixed(8).replace(/\.?0+$/, '');
+                }
+
+                // Check for infinity
+                if (result === Infinity || result === -Infinity) {
+                    displayValue = errorMessages.infinity;
+                    updateDisplay();
+                    shakeCalculator();
+                    return;
+                }
+
+                // Cat mode adds "Meow" to every answer
+                if (catMode) {
+                    displayValue += " Meow";
+                }
+            } catch (error) {
+                displayValue = getRandomError('advanced');
+            }
+            updateDisplay();
+        }
+
+        // Mode toggle functions
+        function toggleCatMode() {
+            catMode = !catMode;
+            blubMode = false;
+
+            if (catMode) {
+                calculator.classList.add('cat-mode');
+                calculator.classList.remove('blub-mode');
+                modeIndicator.textContent = "Cat Mode";
+                displayValue = "Meow!";
+            } else {
+                calculator.classList.remove('cat-mode');
+                modeIndicator.textContent = "";
+                displayValue = "0";
+            }
+            updateDisplay();
+        }
+
+        function toggleBlubMode() {
+            blubMode = !blubMode;
+            catMode = false;
+
+            if (blubMode) {
+                calculator.classList.add('blub-mode');
+                calculator.classList.remove('cat-mode');
+                modeIndicator.textContent = "Blub Mode";
+                displayValue = "Blub!";
+            } else {
+                calculator.classList.remove('blub-mode');
+                modeIndicator.textContent = "";
+                displayValue = "0";
+            }
+            updateDisplay();
+        }
+
+        // Utility functions
+        function getRandomError(errorType) {
+            const errors = randomErrors[errorType];
+            return errors[Math.floor(Math.random() * errors.length)];
+        }
+
+        function shakeCalculator() {
+            calculator.classList.add('shaking');
+            setTimeout(() => {
+                calculator.classList.remove('shaking');
+            }, 500);
+        }
+
+        function changeCalculatorColor(color, duration = 1000) {
+            const originalColor = calculator.style.backgroundColor;
+            calculator.style.backgroundColor = color;
+            setTimeout(() => {
+                calculator.style.backgroundColor = catMode ? "#f48fb1" : (blubMode ? "#42a5f5" : "#d32f2f");
+            }, duration);
+        }
+
+        // Fun button functions
+        function poopButton() {
+            displayValue = errorMessages.poop;
+            updateDisplay();
+            changeCalculatorColor("#795548");
+        }
+
+        function burpButton() {
+            displayValue = errorMessages.manners;
+            updateDisplay();
+            shakeCalculator();
+        }
+
+        function fartButton() {
+            displayValue = errorMessages.fart;
+            updateDisplay();
+            shakeCalculator();
+            changeCalculatorColor("#ff9800");
+        }
+
+        function matrixError() {
+            displayValue = errorMessages.matrix;
+            updateDisplay();
+            shakeCalculator();
+
+            let times = 0;
+            const matrixFlash = setInterval(() => {
+                calculator.style.backgroundColor = times % 2 === 0 ? "#00FF00" : "#000000";
+                display.style.color = times % 2 === 0 ? "#000000" : "#00FF00";
+                times++;
+                if (times > 6) {
+                    clearInterval(matrixFlash);
+                    calculator.style.backgroundColor = catMode ? "#f48fb1" : (blubMode ? "#42a5f5" : "#d32f2f");
+                    display.style.color = "white";
+                }
+            }, 200);
+        }
+
+        function quantumError() {
+            displayValue = errorMessages.quantum;
+            updateDisplay();
+
+            let opacity = 1;
+            const quantumFlicker = setInterval(() => {
+                opacity = opacity === 1 ? 0.3 : 1;
+                calculator.style.opacity = opacity;
+                if (opacity === 1 && Math.random() > 0.5) {
+                    clearInterval(quantumFlicker);
+                }
+            }, 100);
+
+            setTimeout(() => calculator.style.opacity = 1, 2000);
+        }
+
+        function surrealError() {
+            displayValue = getRandomError('surreal');
+            updateDisplay();
+
+            let angle = 0;
+            const wave = setInterval(() => {
+                angle += 5;
+                calculator.style.transform = `rotate(${5 * Math.sin(angle * Math.PI / 180)}deg) scale(${calculatorSize})`;
+                if (angle > 360) {
+                    clearInterval(wave);
+                    calculator.style.transform = `rotate(0deg) scale(${calculatorSize})`;
+                }
+            }, 50);
+        }
+
+        function logarithmError() {
+            displayValue = getRandomError('logarithm');
+            updateDisplay();
+            shakeCalculator();
+        }
+
+        function mannersError() {
+            displayValue = errorMessages.etiquette;
+            updateDisplay();
+            shakeCalculator();
+        }
+
+        function tickleButton() {
+            displayValue = errorMessages.tickle;
+            updateDisplay();
+
+            let jiggles = 0;
+            const tickleInterval = setInterval(() => {
+                const xOffset = Math.random() * 10 - 5;
+                const yOffset = Math.random() * 10 - 5;
+                calculator.style.transform = `translate(${xOffset}px, ${yOffset}px) scale(${calculatorSize})`;
+                jiggles++;
+                if (jiggles > 20) {
+                    clearInterval(tickleInterval);
+                    calculator.style.transform = `scale(${calculatorSize})`;
+                }
+            }, 50);
+        }
+
+        function dinosaurMode() {
+            displayValue = getRandomError('dino');
+            updateDisplay();
+
+            changeCalculatorColor("#4CAF50");
+
+            let stomps = 0;
+            const stompInterval = setInterval(() => {
+                calculator.style.transform = stomps % 2 === 0 ?
+                    `translateY(10px) scale(${calculatorSize})` :
+                    `translateY(0px) scale(${calculatorSize})`;
+                stomps++;
+                if (stomps > 6) {
+                    clearInterval(stompInterval);
+                    calculator.style.transform = `scale(${calculatorSize})`;
+                }
+            }, 200);
+        }
+
+        function spinCalculator() {
+            calculator.style.transition = "transform 1s";
+            calculator.style.transform = `rotate(360deg) scale(${calculatorSize})`;
+            setTimeout(() => {
+                calculator.style.transform = `rotate(0deg) scale(${calculatorSize})`;
+            }, 1000);
+        }
+
+        function resetCalculator() {
+            catMode = false;
+            blubMode = false;
+            calculatorSize = 1;
+            calculator.classList.remove('cat-mode', 'blub-mode');
+            calculator.style.transform = "scale(1)";
+            modeIndicator.textContent = "";
+            displayValue = "0";
+            updateDisplay();
+        }
+
+        function squareRootError() {
+            displayValue = errorMessages.imaginary;
+            updateDisplay();
+            shakeCalculator();
+        }
+
+        function infinityError() {
+            displayValue = errorMessages.infinity;
+            updateDisplay();
+            shakeCalculator();
+        }
+
+        function primeError() {
+            displayValue = getRandomError('prime');
+            updateDisplay();
+            shakeCalculator();
+        }
+
+        function overflowError() {
+            displayValue = errorMessages.overflow;
+            updateDisplay();
+            shakeCalculator();
+        }
+
+        function randomError() {
+            displayValue = getRandomError('advanced');
+            updateDisplay();
+            shakeCalculator();
+        }
+
+        function appsError() {
+            displayValue = errorMessages.apps;
+            updateDisplay();
+            shakeCalculator();
+        }
+
+        function boopButton() {
+            displayValue = "Boop! 👉👃";
+            updateDisplay();
+
+            calculator.classList.add('shaking');
+            setTimeout(() => calculator.classList.remove('shaking'), 200);
+
+            changeCalculatorColor("#9C27B0", 500);
+        }
+
+        function programError() {
+            displayValue = errorMessages.dialog;
+            updateDisplay();
+            shakeCalculator();
+        }
+
+        function trigError(func) {
+            displayValue = errorMessages[`trig${func.charAt(0).toUpperCase() + func.slice(1)}`];
+            updateDisplay();
+
+            let angle = 0;
+            const amplitude = func === 'sin' ? 10 : (func === 'cos' ? 5 : 15);
+            const period = func === 'sin' ? 40 : (func === 'cos' ? 30 : 50);
+
+            const trigWave = setInterval(() => {
+                angle += 10;
+                if (func === 'sin') {
+                    calculator.style.transform = `translateY(${amplitude * Math.sin(angle * Math.PI / 180)}px)`;
+                } else if (func === 'cos') {
+                    calculator.style.transform = `translateX(${amplitude * Math.cos(angle * Math.PI / 180)}px)`;
+                } else { // tan
+                    const value = Math.tan((angle % 90) * Math.PI / 180);
+                    if (!isNaN(value) && isFinite(value)) {
+                        calculator.style.transform = `rotate(${value}deg)`;
+                    }
+                }
+
+                if (angle > period * 2) {
+                    clearInterval(trigWave);
+                    calculator.style.transform = `scale(${calculatorSize})`;
+                }
+            }, 50);
+        }
+
+        // Initialize
+        createButtons();
+        updateDisplay();
+    </script>
+</body>
+</html>
