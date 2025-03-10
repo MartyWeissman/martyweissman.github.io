@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Smiley Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .controls-container {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .matrix-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .matrix {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 5px;
+        }
+
+        .matrix input {
+            width: 60px;
+            height: 30px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .canvas-container {
+            border: 1px solid #ccc;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+
+        button {
+            padding: 8px 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #animate-button {
+            background-color: #2196F3;
+            min-width: 120px; /* Fixed width to prevent layout shifts */
+        }
+
+        #animate-button:hover {
+            background-color: #0b7dda;
+        }
+
+        #animate-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Matrix Smiley Simulator</h1>
+
+    <div class="controls-container">
+        <div class="matrix-container">
+            <div class="matrix">
+                <input type="number" id="a" value="1" step="0.1">
+                <input type="number" id="b" value="0" step="0.1">
+                <input type="number" id="c" value="0" step="0.1">
+                <input type="number" id="d" value="1" step="0.1">
+            </div>
+            <div class="button-container">
+                <button id="eigenvectors-toggle">Show Eigenvectors</button>
+                <button id="animate-button">Animate</button>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="canvas" width="600" height="600"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Get canvas and context
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Get matrix input elements
+        const aInput = document.getElementById('a');
+        const bInput = document.getElementById('b');
+        const cInput = document.getElementById('c');
+        const dInput = document.getElementById('d');
+
+        // Get buttons
+        const eigenToggle = document.getElementById('eigenvectors-toggle');
+        const animateButton = document.getElementById('animate-button');
+
+        // State variables
+        let showEigenvectors = false;
+        let isAnimating = false;
+        let animationFrameId = null;
+
+        // Constants for the coordinate system
+        const width = canvas.width;
+        const height = canvas.height;
+        const scale = width / 6; // 6 units wide (-3 to 3)
+
+        // Function to convert from math coordinates to canvas coordinates
+        function toCanvasX(x) {
+            return width / 2 + x * scale;
+        }
+
+        function toCanvasY(y) {
+            return height / 2 - y * scale;
+        }
+
+        // Function to draw grid and axes
+        function drawGrid() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw grid
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 1;
+
+            // Vertical grid lines
+            for (let x = -3; x <= 3; x += 0.5) {
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(x), 0);
+                ctx.lineTo(toCanvasX(x), height);
+                ctx.stroke();
+            }
+
+            // Horizontal grid lines
+            for (let y = -3; y <= 3; y += 0.5) {
+                ctx.beginPath();
+                ctx.moveTo(0, toCanvasY(y));
+                ctx.lineTo(width, toCanvasY(y));
+                ctx.stroke();
+            }
+
+            // Draw axes
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+
+            // x-axis
+            ctx.beginPath();
+            ctx.moveTo(0, toCanvasY(0));
+            ctx.lineTo(width, toCanvasY(0));
+            ctx.stroke();
+
+            // y-axis
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(0), 0);
+            ctx.lineTo(toCanvasX(0), height);
+            ctx.stroke();
+        }
+
+        // Function to apply matrix transformation to a point
+        function transform(x, y) {
+            const a = parseFloat(aInput.value);
+            const b = parseFloat(bInput.value);
+            const c = parseFloat(cInput.value);
+            const d = parseFloat(dInput.value);
+
+            return {
+                x: a * x + b * y,
+                y: c * x + d * y
+            };
+        }
+
+        // Function to draw a circle
+        function drawCircle(centerX, centerY, radius, fillColor, drawBorder = false) {
+            // For a proper circle transformation, we need to transform multiple points on the circle
+            const numPoints = 60;
+            const points = [];
+
+            for (let i = 0; i < numPoints; i++) {
+                const angle = (i / numPoints) * 2 * Math.PI;
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+                points.push({ x, y });
+            }
+
+            // Transform all points
+            const transformedPoints = points.map(p => transform(p.x, p.y));
+
+            // Draw the shape
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(transformedPoints[0].x), toCanvasY(transformedPoints[0].y));
+
+            for (let i = 1; i < transformedPoints.length; i++) {
+                ctx.lineTo(toCanvasX(transformedPoints[i].x), toCanvasY(transformedPoints[i].y));
+            }
+
+            // Close the path
+            ctx.closePath();
+
+            // Fill
+            ctx.fillStyle = fillColor;
+            ctx.fill();
+
+            // Add border if requested
+            if (drawBorder) {
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        // Function to draw a smile arc
+        function drawSmile() {
+            const a = parseFloat(aInput.value);
+            const b = parseFloat(bInput.value);
+            const c = parseFloat(cInput.value);
+            const d = parseFloat(dInput.value);
+
+            // Check if the matrix flips orientation
+            const determinant = a * d - b * c;
+            const flipped = determinant < 0;
+
+            // Points for the smile arc (now upward for a smile rather than a frown)
+            const points = [];
+            for (let t = -Math.PI/3; t <= Math.PI/3; t += 0.05) {
+                const x = 0.7 * Math.sin(t);
+                const y = -0.5 - 0.2 * Math.cos(t); // Upward curve for a smile
+                points.push({ x, y });
+            }
+
+            // Transform the points
+            const transformedPoints = points.map(p => transform(p.x, p.y));
+
+            // Draw the arc
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(transformedPoints[0].x), toCanvasY(transformedPoints[0].y));
+            for (let i = 1; i < transformedPoints.length; i++) {
+                ctx.lineTo(toCanvasX(transformedPoints[i].x), toCanvasY(transformedPoints[i].y));
+            }
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 6;
+            ctx.stroke();
+        }
+
+        // Function to draw a spiral eye
+        function drawEye(centerX, centerY) {
+            const a = parseFloat(aInput.value);
+            const b = parseFloat(bInput.value);
+            const c = parseFloat(cInput.value);
+            const d = parseFloat(dInput.value);
+
+            // Check if the matrix flips orientation
+            const determinant = a * d - b * c;
+            const clockwise = determinant < 0;
+
+            // Points for the spiral
+            const points = [];
+            const spiralTurns = 2;
+            const spiralPoints = 40;
+
+            for (let i = 0; i <= spiralPoints; i++) {
+                const t = (i / spiralPoints) * spiralTurns * 2 * Math.PI;
+                const radius = 0.1 * (1 - i / spiralPoints);
+
+                // Direction changes based on orientation
+                const angle = clockwise ? -t : t;
+
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+                points.push({ x, y });
+            }
+
+            // Transform the points
+            const transformedPoints = points.map(p => transform(p.x, p.y));
+
+            // Draw the spiral
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(transformedPoints[0].x), toCanvasY(transformedPoints[0].y));
+            for (let i = 1; i < transformedPoints.length; i++) {
+                ctx.lineTo(toCanvasX(transformedPoints[i].x), toCanvasY(transformedPoints[i].y));
+            }
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        // Function to draw the entire smiley face
+        function drawSmiley() {
+            // Draw the face (unit circle with black border)
+            drawCircle(0, 0, 1, 'yellow', true);
+
+            // Draw the nose
+            drawCircle(0, 0, 0.1, 'orange');
+
+            // Draw the smile
+            drawSmile();
+
+            // Draw the eyes
+            drawEye(0.5, 0.6);
+            drawEye(-0.5, 0.6);
+        }
+
+        // Function to calculate eigenvalues and eigenvectors of a 2x2 matrix
+        function calculateEigen() {
+            const a = parseFloat(aInput.value);
+            const b = parseFloat(bInput.value);
+            const c = parseFloat(cInput.value);
+            const d = parseFloat(dInput.value);
+
+            // Calculate the trace and determinant
+            const trace = a + d;
+            const det = a * d - b * c;
+
+            // Calculate the discriminant
+            const discriminant = trace * trace - 4 * det;
+
+            // Initialize result array
+            const result = [];
+
+            // Special case for identity matrix or scaled identity matrix
+            if (Math.abs(a - d) < 1e-10 && Math.abs(b) < 1e-10 && Math.abs(c) < 1e-10) {
+                // For identity matrix, any vector is an eigenvector with eigenvalue a
+                result.push({
+                    eigenvalue: a,
+                    eigenvector: { x: 1, y: 0 }
+                });
+
+                result.push({
+                    eigenvalue: a,
+                    eigenvector: { x: 0, y: 1 }
+                });
+
+                return result;
+            }
+
+            if (discriminant >= 0) {
+                // Real eigenvalues
+                const lambda1 = (trace + Math.sqrt(discriminant)) / 2;
+                const lambda2 = (trace - Math.sqrt(discriminant)) / 2;
+
+                // First eigenvector
+                let v1x, v1y;
+
+                // Matrix is diagonal
+                if (Math.abs(b) < 1e-10 && Math.abs(c) < 1e-10) {
+                    if (Math.abs(a - lambda1) < 1e-10) {
+                        v1x = 1;
+                        v1y = 0;
+                    } else {
+                        v1x = 0;
+                        v1y = 1;
+                    }
+                }
+                // Try using b if it's not too small
+                else if (Math.abs(b) >= 1e-10) {
+                    v1x = 1;
+                    v1y = (lambda1 - a) / b;
+                }
+                // Otherwise try using c
+                else if (Math.abs(c) >= 1e-10) {
+                    v1y = 1;
+                    v1x = (lambda1 - d) / c;
+                }
+                // Fallback
+                else {
+                    v1x = 1;
+                    v1y = 0;
+                }
+
+                // Normalize the first eigenvector
+                const v1Mag = Math.sqrt(v1x * v1x + v1y * v1y);
+                if (v1Mag > 1e-10) { // Avoid division by very small numbers
+                    v1x /= v1Mag;
+                    v1y /= v1Mag;
+                }
+
+                // Second eigenvector
+                let v2x, v2y;
+
+                // Matrix is diagonal
+                if (Math.abs(b) < 1e-10 && Math.abs(c) < 1e-10) {
+                    if (Math.abs(a - lambda2) < 1e-10) {
+                        v2x = 1;
+                        v2y = 0;
+                    } else {
+                        v2x = 0;
+                        v2y = 1;
+                    }
+                }
+                // Try using b if it's not too small
+                else if (Math.abs(b) >= 1e-10) {
+                    v2x = 1;
+                    v2y = (lambda2 - a) / b;
+                }
+                // Otherwise try using c
+                else if (Math.abs(c) >= 1e-10) {
+                    v2y = 1;
+                    v2x = (lambda2 - d) / c;
+                }
+                // Fallback
+                else {
+                    v2x = 0;
+                    v2y = 1;
+                }
+
+                // Normalize the second eigenvector
+                const v2Mag = Math.sqrt(v2x * v2x + v2y * v2y);
+                if (v2Mag > 1e-10) { // Avoid division by very small numbers
+                    v2x /= v2Mag;
+                    v2y /= v2Mag;
+                }
+
+                result.push({
+                    eigenvalue: lambda1,
+                    eigenvector: { x: v1x, y: v1y }
+                });
+
+                // Add the second eigenvalue (even if it's close to the first one)
+                // This ensures we always have two eigenvectors when they exist
+                result.push({
+                    eigenvalue: lambda2,
+                    eigenvector: { x: v2x, y: v2y }
+                });
+            }
+
+            return result;
+        }
+
+        // Function to draw eigenvectors
+        function drawEigenvectors() {
+            const eigen = calculateEigen();
+
+            eigen.forEach(e => {
+                const vector = e.eigenvector;
+                const lambda = e.eigenvalue;
+
+                // Skip if the vector is too small (should never happen with normalized vectors)
+                if (Math.abs(vector.x) < 1e-10 && Math.abs(vector.y) < 1e-10) {
+                    return;
+                }
+
+                // Determine color based on eigenvalue magnitude (corrected)
+                let color;
+                if (Math.abs(lambda) > 1.001) {
+                    color = 'green';  // Expanding
+                } else if (Math.abs(lambda) < 0.999) {
+                    color = 'red';    // Contracting
+                } else {
+                    color = 'black';  // Preserving
+                }
+
+                // Draw line from origin in eigenvector direction (full length to edge)
+                const length = 3; // Length to extend the vector
+
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(0), toCanvasY(0));
+                ctx.lineTo(
+                    toCanvasX(vector.x * length),
+                    toCanvasY(vector.y * length)
+                );
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw line in opposite direction too (for a complete axis)
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(0), toCanvasY(0));
+                ctx.lineTo(
+                    toCanvasX(-vector.x * length),
+                    toCanvasY(-vector.y * length)
+                );
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+        }
+
+        // Animation functions
+        function animateMatrix() {
+            if (isAnimating) return; // Don't start a new animation if one is already running
+
+            isAnimating = true;
+            animateButton.disabled = true;
+            animateButton.textContent = "Animating...";
+
+            // Store the target matrix values
+            const targetA = parseFloat(aInput.value);
+            const targetB = parseFloat(bInput.value);
+            const targetC = parseFloat(cInput.value);
+            const targetD = parseFloat(dInput.value);
+
+            // Start from identity matrix
+            let currentA = 1;
+            let currentB = 0;
+            let currentC = 0;
+            let currentD = 1;
+
+            // Set up animation parameters
+            const totalFrames = 20;
+            const frameDelay = 100; // milliseconds per frame (2 seconds total)
+            let currentFrame = 0;
+
+            // Calculate step size for each matrix element
+            const stepA = (targetA - currentA) / totalFrames;
+            const stepB = (targetB - currentB) / totalFrames;
+            const stepC = (targetC - currentC) / totalFrames;
+            const stepD = (targetD - currentD) / totalFrames;
+
+            // Animation function
+            function animate() {
+                // Update current values
+                currentA += stepA;
+                currentB += stepB;
+                currentC += stepC;
+                currentD += stepD;
+
+                // Update input fields
+                aInput.value = currentA.toFixed(2);
+                bInput.value = currentB.toFixed(2);
+                cInput.value = currentC.toFixed(2);
+                dInput.value = currentD.toFixed(2);
+
+                // Render with current values
+                render();
+
+                currentFrame++;
+
+                // Continue animation if not done
+                if (currentFrame < totalFrames) {
+                    animationFrameId = setTimeout(animate, frameDelay);
+                } else {
+                    // Final frame - set exact target values
+                    aInput.value = targetA;
+                    bInput.value = targetB;
+                    cInput.value = targetC;
+                    dInput.value = targetD;
+                    render();
+
+                    // Reset animation state
+                    isAnimating = false;
+                    animateButton.disabled = false;
+                    animateButton.textContent = "Animate";
+                }
+            }
+
+            // Start animation
+            animate();
+        }
+
+        // Function to render everything
+        function render() {
+            if (showEigenvectors) {
+                ctx.clearRect(0, 0, width, height);
+                drawSmiley();
+                drawEigenvectors();
+            } else {
+                drawGrid();
+                drawSmiley();
+            }
+        }
+
+        // Initial render
+        render();
+
+        // Add event listeners to matrix inputs
+        aInput.addEventListener('input', render);
+        bInput.addEventListener('input', render);
+        cInput.addEventListener('input', render);
+        dInput.addEventListener('input', render);
+
+        // Toggle eigenvectors
+        eigenToggle.addEventListener('click', function() {
+            showEigenvectors = !showEigenvectors;
+            eigenToggle.textContent = showEigenvectors ? 'Hide Eigenvectors' : 'Show Eigenvectors';
+            render();
+        });
+
+        // Animate button
+        animateButton.addEventListener('click', animateMatrix);
+    </script>
+</body>
+</html>
