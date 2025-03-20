@@ -1,0 +1,133 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.container {
+    display: flex;
+    flex: 1;
+    gap: 20px;
+}
+
+.spreadsheet-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.entry-box-container {
+    display: flex;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-bottom: 1px solid #ddd;
+}
+
+.active-cell-display {
+    width: 40px;
+    text-align: center;
+    font-weight: bold;
+    padding: 5px;
+    background-color: #eaeaea;
+    border: 1px solid #ccc;
+    border-right: none;
+    border-radius: 3px 0 0 3px;
+}
+
+.entry-box {
+    flex: 1;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 0 3px 3px 0;
+}
+
+.instructions-container {
+    flex: 1;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 15px;
+    overflow-y: auto;
+}
+
+.spreadsheet {
+    display: table;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.row {
+    display: table-row;
+}
+
+.cell, .header-cell {
+    display: table-cell;
+    border: 1px solid #ddd;
+    padding: 5px;
+    text-align: center;
+    min-width: 45px;
+    height: 25px;
+    vertical-align: middle;
+}
+
+.header-cell {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+.header-highlight {
+    background-color: #e6f2ff;
+}
+
+.row-header {
+    width: 30px;
+}
+
+.editable-cell {
+    background-color: white;
+}
+
+.active-cell {
+    outline: 2px solid #4d90fe;
+}
+
+.current-instruction {
+    background-color: #f9f9f9;
+    border-left: 4px solid #4d90fe;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+.instruction-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+button {
+    padding: 8px 15px;
+    background-color: #4d90fe;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+button:hover {
+    background-color: #357ae8;
+}
+
+.success-message {
+    color: green;
+    font-weight: bold;
+}

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spreadsheet Practice Tool</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Additional styles for new navigation elements */
+        .lesson-nav-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
+
+        .lesson-button {
+            background-color: #ddd;
+            color: #333;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .lesson-button:hover {
+            background-color: #ccc;
+        }
+
+        .lesson-button.active {
+            background-color: #4d90fe;
+            color: white;
+        }
+
+        .help-button {
+            margin-left: auto;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: #4d90fe;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .clear-button {
+            padding: 5px 10px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+
+        .clear-button:hover {
+            background-color: #d32f2f;
+        }
+
+        .error-message {
+            color: #f44336;
+            font-weight: bold;
+        }
+
+        .info-message {
+            color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Spreadsheet Practice Tool</h1>
+
+    <div class="container">
+        <div class="spreadsheet-container">
+            <div class="entry-box-container">
+                <div id="activeCellDisplay" class="active-cell-display"></div>
+                <input type="text" id="entryBox" class="entry-box" placeholder="Enter value, text, or formula (=)">
+                <!-- Clear button will be added here by JavaScript -->
+            </div>
+            <div class="spreadsheet" id="spreadsheet">
+                <!-- JavaScript will generate the spreadsheet here -->
+            </div>
+        </div>
+
+        <div class="instructions-container">
+            <h2>Instructions</h2>
+            <!-- Navigation bar will be added here by JavaScript -->
+            <div class="current-instruction">
+                <!-- Instructions content will be loaded here -->
+            </div>
+
+            <button id="practiceButton">Start Practice</button>
+            <div id="feedbackArea"></div>
+        </div>
+    </div>
+
+    <!-- Load scripts in the correct order -->
+    <script src="verification.js"></script>
+    <script src="spreadsheet-core.js"></script>
+    <script src="spreadsheet-calculator.js"></script>
+    <script src="spreadsheet-functions.js"></script>
+    <script src="spreadsheet-ui.js"></script>
+    <script src="main.js"></script>
+    <script src="guide.js"></script>
+    <!-- Lesson scripts will be loaded dynamically -->
+</body>
+</html>
