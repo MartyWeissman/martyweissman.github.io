@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math 16A/16B First Offering Analysis (Fall 2024-Winter 2025)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .section {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #3498db;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        h3 {
+            color: #2c3e50;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        p {
+            margin-bottom: 15px;
+        }
+        .highlights {
+            background-color: #f0f7ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Math 16A/16B First Offering Analysis (Fall 2024-Winter 2025)</h1>
+
+    <div class="section">
+        <h2>Executive Summary</h2>
+        <div class="highlights">
+            <h3>Key Findings:</h3>
+            <ul>
+                <li>Student confidence in math ability showed a significant improvement from the start of Fall to the end of Winter, with "Agree" and "Strongly agree" responses increasing from 100 to 114 students.</li>
+                <li>Interest in science and engineering remained consistently high throughout both quarters, with over 85% of students expressing interest.</li>
+                <li>148 of 188 students (79%) reported a positive change in their perception of mathematics and its connection to science by the end of 16A.</li>
+                <li>Students spent less time on coursework than initially expected, with 101 of 196 students (52%) reporting 7-10 hours weekly at midterm compared to only 48 students (24%) who predicted this time commitment.</li>
+                <li>Labs were identified as both the most valuable and most challenging aspect of the course, with 55 students specifically mentioning lab difficulties.</li>
+                <li>Students particularly appreciated real-world applications (72 mentions) and biological connections (44 mentions) in the curriculum.</li>
+                <li>For 16B, 45 students preferred weekly check-ins for labs, compared to only 13 who preferred the three-week format.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Course Progression: 16A through 16B</h2>
+        <p>This analysis tracks student perceptions across the first offering of the Math for Life Sciences sequence, from the start of 16A (Fall 2024) through the completion of 16B (Winter 2025).</p>
+        <div class="chart-container">
+            <canvas id="progressionChart"></canvas>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="section">
+            <h2>Student Confidence in Math Ability</h2>
+            <p>Tracking changes in student confidence across both quarters</p>
+            <div class="chart-container">
+                <canvas id="confidenceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Interest in Science & Engineering</h2>
+            <p>Tracking changes in students' interest in science courses</p>
+            <div class="chart-container">
+                <canvas id="scienceInterestChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="section">
+            <h2>Perceived Relevance to Future</h2>
+            <p>Students' perception of how relevant the math will be for their future</p>
+            <div class="chart-container">
+                <canvas id="relevanceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Weekly Time Commitment</h2>
+            <p>Expected vs. actual time spent on course activities each week</p>
+            <div class="chart-container">
+                <canvas id="timeChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="section">
+            <h2>Change in Math Perception</h2>
+            <p>Did the class change students' perception of math? (188 responses)</p>
+            <div class="chart-container">
+                <canvas id="perceptionChart"></canvas>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Course Description Keywords</h2>
+            <p>How students described what the class is about (191 responses)</p>
+            <div class="chart-container">
+                <canvas id="descriptionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="section">
+            <h2>Strengths & Challenges (Mid-Quarter)</h2>
+            <p>Areas where students felt strong vs. what they found challenging</p>
+            <div class="chart-container">
+                <canvas id="strengthsChallengesChart"></canvas>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Inclusion in Section Activities</h2>
+            <p>Students' comfort level participating in section activities</p>
+            <div class="chart-container">
+                <canvas id="inclusionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="section">
+            <h2>Most Interesting Course Aspects</h2>
+            <p>What students found most interesting about the course (194 responses)</p>
+            <div class="chart-container">
+                <canvas id="interestingAspectsChart"></canvas>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Lab Structure Preferences (16B)</h2>
+            <p>Student preferences for lab organization (160 responses)</p>
+            <div class="chart-container">
+                <canvas id="labPreferencesChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Attendance Management Preferences (16B)</h2>
+        <p>Student suggestions for improving lecture attendance (160 responses)</p>
+        <div class="chart-container">
+            <canvas id="attendanceChart"></canvas>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Qualitative Findings</h2>
+
+        <h3>How Students Describe the Class:</h3>
+        <ul>
+            <li>"I would tell them this class is about math in biology-related subjects."</li>
+            <li>"It's about calculus and biology together. It's interesting but hard because I didn't take calculus."</li>
+            <li>"This class is about the modeling of different systems of growth through graphs and equations."</li>
+            <li>"It's a nice math class because it is mostly a science class so it's easier to understand."</li>
+            <li>"This class is unlike any other math class. It focuses on relatively easy concepts but more so teaches you how to think and apply mathematical concepts to science in a way that easily explains and represents scientific phenomena."</li>
+        </ul>
+
+        <h3>How the Class Changed Students' Perception of Math:</h3>
+        <ul>
+            <li>"I would not say it changed my perception of math, but it definitely demonstrated the many ways in which math can be applied to biology, and in a way that is actually useful for my future endeavors."</li>
+            <li>"This class changed my perception of math and the nature of math itself because I've never taken a course where math was taught with applications of science, and it was interesting to see how things are connected."</li>
+            <li>"I really like that this class applied mathematics to real life scenarios, as I typically struggled to see the application of math in real life when it wasn't a big portion of classes. However, now I can see just how applicable math can be in the real world, and how it can be used to model real-life problems."</li>
+            <li>"This class changed my perception of mathematics by showing me how much it actually plays into concepts of biology and chemistry."</li>
+            <li>"This math class made math more fun by having the sciences involved. Math and science are intricately connected to quantify observations, describe natural phenomena, support statistical analysis, and enable complex simulations while evolving through creative problem-solving."</li>
+        </ul>
+
+        <h3>Areas of Strength (Mid-Quarter):</h3>
+        <ul>
+            <li>"Making graphs, using parameters correctly, understanding predator prey systems and the equations that correspond to them."</li>
+            <li>"I feel strong in derivatives and somewhat in the change equation."</li>
+            <li>"The parts that are more math calculations, not the interpreting parts. The parts with direct and objectively correct answers."</li>
+            <li>"I find I am strong in understanding and interpreting graphs and analyzing data."</li>
+            <li>"Understanding real-world connections and their mathematical representations."</li>
+        </ul>
+
+        <h3>Challenging Aspects (Mid-Quarter):</h3>
+        <ul>
+            <li>"Doing derivatives, and the more challenging complicated equations with multiple steps are difficult to set up. Natural log is difficult for me to understand."</li>
+            <li>"Interpreting things and the parts where we have to make tables and make the graph and then do that bit of the lab. The bits of the lab with the given data is tricky."</li>
+            <li>"I find the labs challenging because I don't have enough knowledge on making graphs correctly."</li>
+            <li>"Understanding the theory behind the math we are trying to learn."</li>
+            <li>"Connecting the concepts to the mathematical equations is sometimes challenging."</li>
+        </ul>
+
+        <h3>Most Interesting Aspects:</h3>
+        <ul>
+            <li>"Learning about real life things and then translating them into numbers to see the trends and relationships."</li>
+            <li>"I find it interesting how we can use parameters as placeholders for specific numbers we don't understand in order to model equations relatively, without knowing the actual numbers."</li>
+            <li>"The real-world applications of math to science, especially biology."</li>
+            <li>"The predator-prey models and population dynamics."</li>
+            <li>"How math can be used to model biological processes and predict outcomes."</li>
+        </ul>
+
+        <h3>Lab Structure Feedback (16B):</h3>
+        <ul>
+            <li>"I overall like the lab structure and the check-ins. I find that the check-ins help me stay on track of my workload more throughout the lab manual, making me catch up if I'm behind so it won't snowball into more work later on."</li>
+            <li>"The fast pace of things was hard for me to keep up with. More check-ins wouldn't be bad, but I would still like it to be something that you can make up points for when you turn in the full lab."</li>
+            <li>"I believe the lab structure can be confusing at times but overall I found it to be enjoyable and something I could really think about and digest."</li>
+            <li>"I think the check-ins helped me stay on track a little better. I think it was better to have about half of the lab done by a certain date and then the rest later."</li>
+            <li>"I prefer having labs due without check-ins. I just didn't get comfortable with the check-ins because sometimes when I was behind I felt rushed."</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Conclusions and Recommendations</h2>
+
+        <h3>Key Strengths:</h3>
+        <ul>
+            <li>Strong connection between mathematics and biological concepts</li>
+            <li>Real-world applications that help students see the relevance of mathematics</li>
+            <li>Positive impact on students' perception of mathematics</li>
+            <li>Inclusive learning environment in discussion sections</li>
+            <li>Gradual improvement in student confidence across both quarters</li>
+        </ul>
+
+        <h3>Areas for Improvement:</h3>
+        <ul>
+            <li>Lab structure and clarity (most frequently mentioned challenge)</li>
+            <li>More structured check-ins to help students pace their work</li>
+            <li>Additional support for abstract mathematical concepts</li>
+            <li>Strategies to maintain lecture attendance throughout the sequence</li>
+            <li>More practice with equation manipulation in context</li>
+        </ul>
+
+        <h3>Recommendations:</h3>
+        <ul>
+            <li>Consider implementing weekly lab check-ins, as many students found this helpful for pacing</li>
+            <li>Provide additional resources for students without strong calculus backgrounds</li>
+            <li>Add more practice with equation interpretation and manipulation</li>
+            <li>Consider incentives for lecture attendance, as most students preferred this approach</li>
+            <li>Maintain the strong focus on real-world applications, which students particularly valued</li>
+        </ul>
+
+        <p>Overall, the first offering of the Math 16A/16B sequence appears to have been successful in helping students see connections between mathematics and life sciences. The majority of students reported positive changes in their perception of mathematics, and many found the real-world applications valuable. Student confidence in math ability improved across both quarters, suggesting that the course is effectively building mathematical competency. Future iterations could benefit from refinements to the lab structure and additional support for abstract mathematical concepts.</p>
+    </div>
+
+    <script>
+        // Common chart options
+        Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+        Chart.defaults.font.size = 14;
+        Chart.defaults.color = '#555';
+
+        // Set up colors
+        const colors = {
+            blue: 'rgba(54, 162, 235, 0.8)',
+            green: 'rgba(75, 192, 192, 0.8)',
+            yellow: 'rgba(255, 206, 86, 0.8)',
+            red: 'rgba(255, 99, 132, 0.8)',
+            purple: 'rgba(153, 102, 255, 0.8)',
+            orange: 'rgba(255, 159, 64, 0.8)'
+        };
+
+        const pieColors = [
+            colors.blue,
+            colors.green,
+            colors.yellow,
+            colors.red,
+            colors.purple,
+            colors.orange
+        ];
+
+        // 0. Course Progression Chart
+        const progressionCtx = document.getElementById('progressionChart').getContext('2d');
+        new Chart(progressionCtx, {
+            type: 'line',
+            data: {
+                labels: ['Start of 16A', 'Mid 16A', 'End of 16A', 'End of 16B'],
+                datasets: [
+                    {
+                        label: 'Math Confidence (Agree + Strongly Agree)',
+                        data: [100, 105, 126, 114],
+                        borderColor: colors.blue,
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Science Interest (Agree + Strongly Agree)',
+                        data: [187, 180, 168, 145],
+                        borderColor: colors.green,
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Perceived Relevance (Agree + Strongly Agree)',
+                        data: [182, 170, 156, 0],
+                        borderColor: colors.yellow,
+                        backgroundColor: 'rgba(255, 206, 86, 0.2)',
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Students'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 1. Student Confidence in Math Ability
+        const confidenceCtx = document.getElementById('confidenceChart').getContext('2d');
+        new Chart(confidenceCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Strongly agree', 'Agree', 'Neutral', 'Disagree', 'Strongly disagree'],
+                datasets: [
+                    {
+                        label: 'Start of 16A',
+                        data: [11, 89, 79, 22, 3],
+                        backgroundColor: colors.blue
+                    },
+                    {
+                        label: 'End of 16A',
+                        data: [21, 105, 52, 10, 3],
+                        backgroundColor: colors.green
+                    },
+                    {
+                        label: 'End of 16B',
+                        data: [19, 95, 38, 7, 1],
+                        backgroundColor: colors.yellow
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Students'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 2. Interest in Science & Engineering
+        const scienceInterestCtx = document.getElementById('scienceInterestChart').getContext('2d');
+        new Chart(scienceInterestCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Strongly agree', 'Agree', 'Neutral', 'Disagree', 'Strongly disagree'],
+                datasets: [
+                    {
+                        label: 'Start of 16A',
+                        data: [92, 95, 14, 2, 1],
+                        backgroundColor: colors.blue
+                    },
+                    {
+                        label: 'End of 16A',
+                        data: [76, 92, 20, 3, 0],
+                        backgroundColor: colors.green
+                    },
+                    {
+                        label: 'End of 16B',
+                        data: [67, 78, 13, 2, 0],
+                        backgroundColor: colors.yellow
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Students'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 3. Perceived Relevance to Future
+        const relevanceCtx = document.getElementById('relevanceChart').getContext('2d');
+        new Chart(relevanceCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Strongly agree', 'Agree', 'Neutral', 'Disagree', 'Strongly disagree'],
+                datasets: [
+                    {
+                        label: 'Start of 16A',
+                        data: [78, 104, 18, 4, 0],
+                        backgroundColor: colors.blue
+                    },
+                    {
+                        label: 'End of 16A',
+                        data: [66, 90, 27, 5, 3],
+                        backgroundColor: colors.green
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Students'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 4. Weekly Time Commitment
+        const timeCtx = document.getElementById('timeChart').getContext('2d');
+        new Chart(timeCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Less than 7 hours', '7-10 hours', '11-14 hours', '15-18 hours', 'More than 18 hours'],
+                datasets: [
+                    {
+                        label: 'Expected (Start)',
+                        data: [2, 48, 64, 86, 4],
+                        backgroundColor: colors.blue
+                    },
+                    {
+                        label: 'Actual (Mid-Quarter)',
+                        data: [34, 101, 40, 18, 3],
+                        backgroundColor: colors.green
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Students'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 5. Change in Math Perception
+        const perceptionCtx = document.getElementById('perceptionChart').getContext('2d');
+        new Chart(perceptionCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Positive Change', 'Negative/Challenging', 'No Change/Neutral'],
+                datasets: [{
+                    data: [148, 39, 6],
+                    backgroundColor: pieColors.slice(0, 3),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed + ' responses';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 6. Course Description Keywords
+        const descriptionCtx = document.getElementById('descriptionChart').getContext('2d');
+        new Chart(descriptionCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Science', 'Biology', 'Calculus', 'Application', 'Modeling', 'Graphs', 'Equations'],
+                datasets: [{
+                    label: 'Number of Mentions',
+                    data: [78, 73, 50, 43, 38, 27, 33],
+                    backgroundColor: colors.green
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Mentions'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 7. Strengths & Challenges
+        const strengthsChallengesCtx = document.getElementById('strengthsChallengesChart').getContext('2d');
+        new Chart(strengthsChallengesCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Equations', 'Graphing', 'Modeling', 'Applications', 'Labs/Concepts'],
+                datasets: [
+                    {
+                        label: 'Strengths',
+                        data: [52, 35, 22, 19, 0],
+                        backgroundColor: colors.blue
+                    },
+                    {
+                        label: 'Challenges',
+                        data: [24, 12, 0, 0, 55],
+                        backgroundColor: colors.red
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Mentions'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 8. Inclusion in Section Activities
+        const inclusionCtx = document.getElementById('inclusionChart').getContext('2d');
+        new Chart(inclusionCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Strongly agree', 'Agree', 'Neutral', 'Disagree', 'Strongly disagree'],
+                datasets: [{
+                    data: [62, 98, 27, 7, 2],
+                    backgroundColor: pieColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed + ' students';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 9. Interesting Aspects
+        const interestingAspectsCtx = document.getElementById('interestingAspectsChart').getContext('2d');
+        new Chart(interestingAspectsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Real-World Applications', 'Biological Connections', 'Mathematical Models', 'Applied Math', 'Graph Analysis'],
+                datasets: [{
+                    label: 'Number of Mentions',
+                    data: [72, 44, 37, 36, 10],
+                    backgroundColor: colors.purple
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Mentions'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 10. Lab Structure Preferences
+        const labPreferencesCtx = document.getElementById('labPreferencesChart').getContext('2d');
+        new Chart(labPreferencesCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Weekly Check-ins', 'Three-Week Labs', 'Mixed Approach', 'Other/Not Clear'],
+                datasets: [{
+                    data: [45, 13, 2, 100],
+                    backgroundColor: pieColors.slice(0, 4),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed + ' responses';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 11. Attendance Management
+        const attendanceCtx = document.getElementById('attendanceChart').getContext('2d');
+        new Chart(attendanceCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Incentives', 'Mandatory', 'Leave Alone', 'Other/Not Clear'],
+                datasets: [{
+                    data: [66, 50, 38, 6],
+                    backgroundColor: pieColors.slice(0, 4),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed + ' responses';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
