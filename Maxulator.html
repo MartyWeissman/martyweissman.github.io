@@ -593,6 +593,25 @@
                     return;
                 }
 
+                // Check for 7*12 or 12*7 multiplication
+                if (displayValue === '7*12' || displayValue === '12*7' ||
+                    displayValue === '7×12' || displayValue === '12×7') {
+                    showError('version', {
+                        message: "VERSION ERROR: Calculator firmware needs update! Version 1.2.7 required.",
+                        color: "#FF5722"
+                    });
+                    return;
+                }
+
+                // Check for 9/2 division
+                if (displayValue === '9/2' || displayValue === '9÷2') {
+                    showError('update', {
+                        message: "UPDATE ERROR! New features available in paid version.",
+                        color: "#3F51B5"
+                    });
+                    return;
+                }
+
                 // Random chance for prime error
                 if (Math.random() < 0.1) {
                     showError('prime');
