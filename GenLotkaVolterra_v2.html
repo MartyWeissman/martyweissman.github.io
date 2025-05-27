@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generalized Lotka-Volterra Model</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .main-content {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .plot-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .plot {
+            border: 1px solid #ccc;
+        }
+        .plot-controls {
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 15px;
+            margin-top: 15px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        .controls {
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            min-width: 300px;
+        }
+        .parameter-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .parameter-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .parameter-item label {
+            min-width: 20px;
+            font-weight: bold;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .input-group label {
+            min-width: 80px;
+        }
+        input[type="number"] {
+            width: 70px;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        input[type="range"] {
+            width: 120px;
+        }
+        .button-grid {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .show-hide-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+        .reset-button {
+            background-color: #ffb3ba;
+            border-color: #ff9999;
+            height: 60px;
+            font-weight: bold;
+        }
+        .reset-button:hover {
+            background-color: #ff9999;
+        }
+        button {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        button:hover {
+            background: #f0f0f0;
+        }
+        button.active {
+            background: #e0e0ff;
+            border-color: #8080ff;
+        }
+        .nullclines-button {
+            border: 2px solid;
+            border-top-color: rgb(255,150,150);
+            border-bottom-color: rgb(255,150,150);
+            border-left-color: rgb(150,150,255);
+            border-right-color: rgb(150,150,255);
+        }
+        .time-series-container {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+        }
+        .error-message {
+            color: red;
+            font-size: 14px;
+            text-align: center;
+            margin-top: 10px;
+            min-height: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .equations {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Generalized Lotka-Volterra Model</h1>
+
+        <div class="main-content">
+            <div class="plot-section">
+                <canvas id="phaseCanvas" width="450" height="480"></canvas>
+
+                <div class="plot-controls">
+                    <div class="input-group">
+                        <label>P max:</label>
+                        <input type="number" id="pmax" step="0.5" min="0.5" max="20" value="5">
+                    </div>
+                    <div class="input-group">
+                        <label>Q max:</label>
+                        <input type="number" id="qmax" step="0.5" min="0.5" max="20" value="5">
+                    </div>
+                    <div class="input-group">
+                        <label>P(0):</label>
+                        <input type="number" id="p0" step="0.1" min="0" value="1">
+                    </div>
+                    <div class="input-group">
+                        <label>Q(0):</label>
+                        <input type="number" id="q0" step="0.1" min="0" value="1">
+                    </div>
+                </div>
+
+                <div class="error-message" id="errorMessage"></div>
+            </div>
+
+            <div class="controls">
+                <div class="equations" id="equations">
+                    <div style="color: darkred;">P' = αP - γP² + uPQ</div>
+                    <div style="color: darkblue;">Q' = βQ - δQ² + vPQ</div>
+                </div>
+
+                <div class="parameter-grid">
+                    <div class="parameter-item">
+                        <label>α:</label>
+                        <input type="number" id="alpha" step="0.1" value="1.5">
+                    </div>
+                    <div class="parameter-item">
+                        <label>β:</label>
+                        <input type="number" id="beta" step="0.1" value="-2">
+                    </div>
+                    <div class="parameter-item">
+                        <label>γ:</label>
+                        <input type="number" id="gamma" step="0.1" value="0">
+                    </div>
+                    <div class="parameter-item">
+                        <label>δ:</label>
+                        <input type="number" id="delta" step="0.1" value="0.5">
+                    </div>
+                    <div class="parameter-item">
+                        <label>u:</label>
+                        <input type="number" id="u" step="0.1" value="-1">
+                    </div>
+                    <div class="parameter-item">
+                        <label>v:</label>
+                        <input type="number" id="v" step="0.1" value="1">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Vector scale:</label>
+                    <input type="number" id="vectorScale" step="1" min="1" max="10" value="5">
+                </div>
+
+                <div class="input-group">
+                    <label>Speed:</label>
+                    <input type="range" id="speed" min="0" max="10" step="1" value="5">
+                </div>
+
+                <div class="button-grid">
+                    <div class="show-hide-buttons">
+                        <button id="nullclinesBtn" class="nullclines-button">Hide nullclines</button>
+                        <button id="equilibriumBtn">Hide equilibria</button>
+                        <button id="vectorFieldBtn">Show vector field</button>
+                        <button id="trajectoryBtn">Show trajectory</button>
+                    </div>
+                    <div class="action-buttons">
+                        <button id="animationBtn">Start animation</button>
+                        <button id="traceBtn">Start trajectory</button>
+                        <button id="resetBtn" class="reset-button">Reset</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="time-series-container">
+            <canvas id="timeCanvas" width="800" height="300"></canvas>
+        </div>
+    </div>
+
+    <script>
+        class LotkaVolterraExplorer {
+            constructor() {
+                this.initializeElements();
+                this.initializeState();
+                this.setupEventListeners();
+                this.render();
+            }
+
+            initializeElements() {
+                this.phaseCanvas = document.getElementById('phaseCanvas');
+                this.phaseCtx = this.phaseCanvas.getContext('2d');
+                this.timeCanvas = document.getElementById('timeCanvas');
+                this.timeCtx = this.timeCanvas.getContext('2d');
+                this.errorEl = document.getElementById('errorMessage');
+
+                this.plotWidth = 400;
+                this.plotHeight = 400;
+                this.padding = { left: 40, top: 30, right: 30, bottom: 50 };
+            }
+
+            initializeState() {
+                this.params = {
+                    alpha: 1.5, beta: -2, gamma: 0, delta: 0.5, u: -1, v: 1,
+                    pmax: 5, qmax: 5, speed: 5, vectorScale: 5
+                };
+
+                this.flags = {
+                    showNullclines: true,
+                    showEquilibria: true,
+                    showVectorField: false,
+                    showAnimation: false,
+                    showTrajectory: false
+                };
+
+                this.trajectory = null;
+                this.isTracing = false;
+                this.isPaused = false;
+                this.animationId = null;
+                this.particles = [];
+
+                this.timeData = {
+                    time: [0],
+                    p: [1],
+                    q: [1],
+                    maxTime: 20
+                };
+            }
+
+            setupEventListeners() {
+                // Parameter inputs
+                ['alpha', 'beta', 'gamma', 'delta', 'u', 'v', 'pmax', 'qmax', 'speed', 'vectorScale'].forEach(param => {
+                    const el = document.getElementById(param === 'vectorScale' ? 'vectorScale' : param);
+                    el.addEventListener('input', (e) => {
+                        this.params[param] = parseFloat(e.target.value);
+                        this.render();
+                    });
+                });
+
+                // Initial condition inputs
+                ['p0', 'q0'].forEach(param => {
+                    document.getElementById(param).addEventListener('input', (e) => {
+                        const val = parseFloat(e.target.value);
+                        if (val < 0 || isNaN(val)) {
+                            this.showError(`${param.toUpperCase()} must be non-negative`);
+                            return;
+                        }
+                        this.hideError();
+                        this.render();
+                    });
+                });
+
+                // Toggle buttons
+                document.getElementById('nullclinesBtn').addEventListener('click', () => this.toggle('showNullclines'));
+                document.getElementById('equilibriumBtn').addEventListener('click', () => this.toggle('showEquilibria'));
+                document.getElementById('vectorFieldBtn').addEventListener('click', () => this.toggle('showVectorField'));
+                document.getElementById('animationBtn').addEventListener('click', () => this.toggleAnimation());
+                document.getElementById('trajectoryBtn').addEventListener('click', () => this.toggle('showTrajectory'));
+                document.getElementById('traceBtn').addEventListener('click', () => this.toggleTrace());
+                document.getElementById('resetBtn').addEventListener('click', () => this.reset());
+            }
+
+            toggle(flag) {
+                this.flags[flag] = !this.flags[flag];
+                this.updateButtonStates();
+                this.render();
+            }
+
+            toggleAnimation() {
+                if (this.flags.showAnimation) {
+                    // Stop animation
+                    this.flags.showAnimation = false;
+                    this.stopAnimation();
+                } else {
+                    // Start animation - resume with existing particles or create new ones
+                    this.flags.showAnimation = true;
+                    if (this.particles.length === 0) {
+                        this.initParticles();
+                    }
+                    this.animate();
+                }
+                this.updateButtonStates();
+            }
+
+            updateButtonStates() {
+                // Update show/hide buttons
+                document.getElementById('nullclinesBtn').textContent =
+                    this.flags.showNullclines ? 'Hide nullclines' : 'Show nullclines';
+                document.getElementById('equilibriumBtn').textContent =
+                    this.flags.showEquilibria ? 'Hide equilibria' : 'Show equilibria';
+                document.getElementById('vectorFieldBtn').textContent =
+                    this.flags.showVectorField ? 'Hide vector field' : 'Show vector field';
+                document.getElementById('trajectoryBtn').textContent =
+                    this.flags.showTrajectory ? 'Hide trajectory' : 'Show trajectory';
+
+                // Update start/stop buttons
+                document.getElementById('animationBtn').textContent =
+                    this.flags.showAnimation ? 'Stop animation' : 'Start animation';
+                document.getElementById('traceBtn').textContent =
+                    (this.isTracing || (this.trajectory && !this.isPaused)) ? 'Stop trajectory' : 'Start trajectory';
+            }
+
+            showError(msg) {
+                this.errorEl.textContent = msg;
+            }
+
+            hideError() {
+                this.errorEl.textContent = '';
+            }
+
+            // Coordinate conversion
+            toCanvasX(p) {
+                return this.padding.left + (p / this.params.pmax) * this.plotWidth;
+            }
+
+            toCanvasY(q) {
+                return this.padding.top + this.plotHeight - (q / this.params.qmax) * this.plotHeight;
+            }
+
+            // Line class for nullclines
+            createLine(a, b, c) {
+                return {
+                    a, b, c,
+                    epsilon: 1e-6,
+
+                    isDegenerate() {
+                        return Math.abs(this.a) < this.epsilon && Math.abs(this.b) < this.epsilon;
+                    },
+
+                    intersectWith(other) {
+                        const det = this.a * other.b - other.a * this.b;
+                        if (Math.abs(det) < this.epsilon) return null;
+
+                        return {
+                            p: (this.c * other.b - other.c * this.b) / det,
+                            q: (this.a * other.c - other.a * this.c) / det
+                        };
+                    },
+
+                    findViewportIntersections(pmax, qmax) {
+                        const intersections = [];
+                        const eps = this.epsilon;
+
+                        // Intersection with p = 0
+                        if (Math.abs(this.b) > eps) {
+                            const q = this.c / this.b;
+                            if (q >= 0 && q <= qmax) intersections.push({ p: 0, q });
+                        }
+
+                        // Intersection with q = 0
+                        if (Math.abs(this.a) > eps) {
+                            const p = this.c / this.a;
+                            if (p >= 0 && p <= pmax) intersections.push({ p, q: 0 });
+                        }
+
+                        // Intersection with p = pmax
+                        if (Math.abs(this.b) > eps) {
+                            const q = (this.c - this.a * pmax) / this.b;
+                            if (q >= 0 && q <= qmax) intersections.push({ p: pmax, q });
+                        }
+
+                        // Intersection with q = qmax
+                        if (Math.abs(this.a) > eps) {
+                            const p = (this.c - this.b * qmax) / this.a;
+                            if (p >= 0 && p <= pmax) intersections.push({ p, q: qmax });
+                        }
+
+                        return intersections;
+                    }
+                };
+            }
+
+            getNullclines() {
+                const { alpha, beta, gamma, delta, u, v } = this.params;
+
+                return {
+                    p: [
+                        this.createLine(1, 0, 0),        // P = 0
+                        this.createLine(-gamma, u, -alpha) // -γP + uQ = -α
+                    ],
+                    q: [
+                        this.createLine(0, 1, 0),        // Q = 0
+                        this.createLine(v, -delta, -beta) // vP - δQ = -β
+                    ]
+                };
+            }
+
+            findEquilibria() {
+                const nullclines = this.getNullclines();
+                const equilibria = [];
+                const eps = 1e-6;
+
+                nullclines.p.forEach(pLine => {
+                    nullclines.q.forEach(qLine => {
+                        if (!pLine.isDegenerate() && !qLine.isDegenerate()) {
+                            const point = pLine.intersectWith(qLine);
+                            if (point && point.p >= 0 && point.q >= 0 &&
+                                point.p <= this.params.pmax && point.q <= this.params.qmax) {
+                                equilibria.push(point);
+                            }
+                        }
+                    });
+                });
+
+                // Remove duplicates
+                return equilibria.filter((point, i, arr) =>
+                    arr.findIndex(p => Math.abs(p.p - point.p) < eps && Math.abs(p.q - point.q) < eps) === i
+                );
+            }
+
+            // Drawing functions
+            drawAxes() {
+                const ctx = this.phaseCtx;
+                ctx.strokeStyle = 'black';
+                ctx.fillStyle = 'black';
+                ctx.lineWidth = 1;
+
+                // Axes
+                ctx.beginPath();
+                ctx.moveTo(this.toCanvasX(0), this.toCanvasY(0));
+                ctx.lineTo(this.toCanvasX(this.params.pmax), this.toCanvasY(0));
+                ctx.moveTo(this.toCanvasX(0), this.toCanvasY(0));
+                ctx.lineTo(this.toCanvasX(0), this.toCanvasY(this.params.qmax));
+                ctx.stroke();
+
+                // Labels
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Population P', this.plotWidth/2 + this.padding.left, this.plotHeight + this.padding.top + 25);
+                ctx.fillText(this.params.pmax.toString(), this.toCanvasX(this.params.pmax), this.toCanvasY(0) + 15);
+
+                ctx.save();
+                ctx.translate(20, this.plotHeight/2 + this.padding.top);
+                ctx.rotate(-Math.PI/2);
+                ctx.fillText('Population Q', 0, 0);
+                ctx.restore();
+
+                ctx.textAlign = 'right';
+                ctx.fillText(this.params.qmax.toString(), this.toCanvasX(0) - 5, this.toCanvasY(this.params.qmax) + 4);
+            }
+
+            drawGrid() {
+                if (this.flags.showVectorField) return;
+
+                const ctx = this.phaseCtx;
+                ctx.strokeStyle = '#f0f0f0';
+                ctx.lineWidth = 1;
+
+                for (let i = 0; i <= this.params.pmax; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.toCanvasX(i), this.toCanvasY(0));
+                    ctx.lineTo(this.toCanvasX(i), this.toCanvasY(this.params.qmax));
+                    ctx.stroke();
+                }
+
+                for (let i = 0; i <= this.params.qmax; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.toCanvasX(0), this.toCanvasY(i));
+                    ctx.lineTo(this.toCanvasX(this.params.pmax), this.toCanvasY(i));
+                    ctx.stroke();
+                }
+            }
+
+            drawNullclines() {
+                if (!this.flags.showNullclines) return;
+
+                const ctx = this.phaseCtx;
+                const nullclines = this.getNullclines();
+                const colors = { p: 'rgba(255,100,100,0.8)', q: 'rgba(100,100,255,0.8)' };
+
+                ['p', 'q'].forEach(type => {
+                    ctx.strokeStyle = colors[type];
+                    ctx.lineWidth = 2;
+
+                    nullclines[type].forEach(line => {
+                        if (!line.isDegenerate()) {
+                            const points = line.findViewportIntersections(this.params.pmax, this.params.qmax);
+
+                            if (points.length >= 2) {
+                                points.sort((a, b) => a.p - b.p);
+                                ctx.beginPath();
+                                ctx.moveTo(this.toCanvasX(points[0].p), this.toCanvasY(points[0].q));
+                                for (let i = 1; i < points.length; i++) {
+                                    ctx.lineTo(this.toCanvasX(points[i].p), this.toCanvasY(points[i].q));
+                                }
+                                ctx.stroke();
+                            }
+                        }
+                    });
+                });
+            }
+
+            drawVectorField() {
+                if (!this.flags.showVectorField) return;
+
+                const ctx = this.phaseCtx;
+                const { alpha, beta, gamma, delta, u, v, pmax, qmax, vectorScale } = this.params;
+                const step = Math.min(pmax, qmax) / 12;
+
+                ctx.strokeStyle = 'rgba(100,100,100,0.6)';
+                ctx.fillStyle = 'rgba(100,100,100,0.6)';
+                ctx.lineWidth = 1;
+
+                for (let p = step/2; p < pmax; p += step) {
+                    for (let q = step/2; q < qmax; q += step) {
+                        const dp = alpha * p - gamma * p * p + u * p * q;
+                        const dq = beta * q - delta * q * q + v * p * q;
+
+                        const magnitude = Math.sqrt(dp * dp + dq * dq);
+                        if (magnitude < 1e-6) continue;
+
+                        const scale = Math.log(magnitude + 1) * vectorScale * 1.6;
+                        const x1 = this.toCanvasX(p);
+                        const y1 = this.toCanvasY(q);
+                        const x2 = x1 + (dp / magnitude) * scale;
+                        const y2 = y1 - (dq / magnitude) * scale; // Flip Y for canvas
+
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.stroke();
+
+                        // Arrowhead
+                        const angle = Math.atan2(y2 - y1, x2 - x1);
+                        ctx.save();
+                        ctx.translate(x2, y2);
+                        ctx.rotate(angle);
+                        ctx.beginPath();
+                        ctx.moveTo(0, 0);
+                        ctx.lineTo(-6, -2);
+                        ctx.lineTo(-6, 2);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                }
+            }
+
+            drawEquilibria() {
+                if (!this.flags.showEquilibria) return;
+
+                const ctx = this.phaseCtx;
+                const equilibria = this.findEquilibria();
+
+                ctx.fillStyle = 'purple';
+                equilibria.forEach(point => {
+                    ctx.beginPath();
+                    ctx.arc(this.toCanvasX(point.p), this.toCanvasY(point.q), 4, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+            }
+
+            drawInitialPoint() {
+                const p0 = parseFloat(document.getElementById('p0').value);
+                const q0 = parseFloat(document.getElementById('q0').value);
+
+                if (isNaN(p0) || isNaN(q0) || p0 < 0 || q0 < 0) return;
+
+                const ctx = this.phaseCtx;
+                ctx.fillStyle = 'green';
+                ctx.beginPath();
+                ctx.arc(this.toCanvasX(p0), this.toCanvasY(q0), 5, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+
+            drawTrajectory() {
+                if (!this.flags.showTrajectory || !this.trajectory) return;
+
+                const ctx = this.phaseCtx;
+                ctx.strokeStyle = 'green';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+
+                let started = false;
+                this.trajectory.points.forEach(point => {
+                    if (point.p >= 0 && point.q >= 0 &&
+                        point.p <= this.params.pmax && point.q <= this.params.qmax) {
+                        if (!started) {
+                            ctx.moveTo(this.toCanvasX(point.p), this.toCanvasY(point.q));
+                            started = true;
+                        } else {
+                            ctx.lineTo(this.toCanvasX(point.p), this.toCanvasY(point.q));
+                        }
+                    }
+                });
+                ctx.stroke();
+
+                // Current point
+                if (this.trajectory.points.length > 0) {
+                    const last = this.trajectory.points[this.trajectory.points.length - 1];
+                    if (last.p >= 0 && last.q >= 0 && last.p <= this.params.pmax && last.q <= this.params.qmax) {
+                        ctx.fillStyle = this.isTracing ? 'green' : 'black';
+                        ctx.beginPath();
+                        ctx.arc(this.toCanvasX(last.p), this.toCanvasY(last.q), this.isTracing ? 3 : 5, 0, 2 * Math.PI);
+                        ctx.fill();
+                    }
+                }
+            }
+
+            drawTimeSeries() {
+                const ctx = this.timeCtx;
+                const width = this.timeCanvas.width;
+                const height = this.timeCanvas.height;
+                const pad = 50;
+
+                // Clear
+                ctx.clearRect(0, 0, width, height);
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, width, height);
+
+                // Axes
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(pad, pad);
+                ctx.lineTo(pad, height - pad);
+                ctx.lineTo(width - pad, height - pad);
+                ctx.stroke();
+
+                // Labels
+                ctx.fillStyle = 'black';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Time', width/2, height - 15);
+
+                ctx.save();
+                ctx.translate(15, height/2);
+                ctx.rotate(-Math.PI/2);
+                ctx.fillText('Population', 0, 0);
+                ctx.restore();
+
+                if (this.timeData.time.length < 2) return;
+
+                const maxVal = Math.max(...this.timeData.p, ...this.timeData.q, this.params.pmax, this.params.qmax);
+                const maxTime = this.timeData.maxTime;
+
+                // Plot P(t)
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                this.timeData.time.forEach((t, i) => {
+                    const x = pad + (width - 2*pad) * t / maxTime;
+                    const y = height - pad - (height - 2*pad) * this.timeData.p[i] / maxVal;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Plot Q(t)
+                ctx.strokeStyle = 'blue';
+                ctx.beginPath();
+                this.timeData.time.forEach((t, i) => {
+                    const x = pad + (width - 2*pad) * t / maxTime;
+                    const y = height - pad - (height - 2*pad) * this.timeData.q[i] / maxVal;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Legend
+                ctx.textAlign = 'left';
+                ctx.fillStyle = 'red';
+                ctx.fillText('P(t)', width - pad + 10, pad + 20);
+                ctx.fillStyle = 'blue';
+                ctx.fillText('Q(t)', width - pad + 10, pad + 40);
+            }
+
+            // Animation and trajectory
+            initParticles() {
+                this.particles = [];
+                const step = Math.min(this.params.pmax, this.params.qmax) / 8;
+                for (let p = step; p < this.params.pmax; p += step) {
+                    for (let q = step; q < this.params.qmax; q += step) {
+                        this.particles.push({ p, q, trail: [] });
+                    }
+                }
+            }
+
+            updateParticles(dt) {
+                const { alpha, beta, gamma, delta, u, v, speed } = this.params;
+                const scaledDt = dt * speed * 0.0001; // 10x slower than before
+
+                this.particles.forEach(particle => {
+                    const dp = alpha * particle.p - gamma * particle.p * particle.p + u * particle.p * particle.q;
+                    const dq = beta * particle.q - delta * particle.q * particle.q + v * particle.p * particle.q;
+
+                    particle.trail.push({ p: particle.p, q: particle.q });
+                    if (particle.trail.length > 15) particle.trail.shift(); // Trail of 15 points
+
+                    particle.p = Math.max(0, particle.p + dp * scaledDt);
+                    particle.q = Math.max(0, particle.q + dq * scaledDt);
+                });
+            }
+
+            drawParticles() {
+                const ctx = this.phaseCtx;
+
+                this.particles.forEach(particle => {
+                    if (particle.p <= this.params.pmax && particle.q <= this.params.qmax) {
+                        // Draw trail as individual dots with fading alpha
+                        particle.trail.forEach((pos, i) => {
+                            if (pos.p >= 0 && pos.q >= 0 && pos.p <= this.params.pmax && pos.q <= this.params.qmax) {
+                                const alpha = (i + 1) / particle.trail.length * 0.4; // Fade from 0 to 0.4
+                                ctx.fillStyle = `rgba(0,0,255,${alpha})`;
+                                ctx.beginPath();
+                                ctx.arc(this.toCanvasX(pos.p), this.toCanvasY(pos.q), 1, 0, 2 * Math.PI);
+                                ctx.fill();
+                            }
+                        });
+
+                        // Current particle position
+                        ctx.fillStyle = 'blue';
+                        ctx.beginPath();
+                        ctx.arc(this.toCanvasX(particle.p), this.toCanvasY(particle.q), 2, 0, 2 * Math.PI);
+                        ctx.fill();
+                    }
+                });
+            }
+
+            animate() {
+                if (!this.flags.showAnimation) return;
+
+                this.updateParticles(16);
+                this.render();
+                this.animationId = requestAnimationFrame(() => this.animate());
+            }
+
+            stopAnimation() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+            }
+
+            toggleTrace() {
+                if (this.isTracing) {
+                    // Stop/pause tracing
+                    this.isTracing = false;
+                    this.isPaused = true;
+                } else if (this.trajectory && this.isPaused) {
+                    // Resume tracing from where we left off
+                    this.isTracing = true;
+                    this.isPaused = false;
+                    this.flags.showTrajectory = true;
+                    this.traceStep();
+                } else {
+                    // Start new trace
+                    this.startTrace();
+                }
+                this.updateButtonStates();
+            }
+
+            startTrace() {
+                const p0 = parseFloat(document.getElementById('p0').value);
+                const q0 = parseFloat(document.getElementById('q0').value);
+
+                if (isNaN(p0) || isNaN(q0) || p0 < 0 || q0 < 0) {
+                    this.showError('Invalid initial conditions');
+                    return;
+                }
+
+                this.hideError();
+                this.isTracing = true;
+                this.isPaused = false;
+                this.flags.showTrajectory = true;
+
+                this.trajectory = {
+                    points: [{ p: p0, q: q0 }],
+                    time: 0
+                };
+
+                this.timeData = {
+                    time: [0],
+                    p: [p0],
+                    q: [q0],
+                    maxTime: 20
+                };
+
+                this.updateButtonStates();
+                this.traceStep();
+            }
+
+            traceStep() {
+                if (!this.isTracing) return;
+
+                const dt = 0.01;
+                const { alpha, beta, gamma, delta, u, v, speed } = this.params;
+                const last = this.trajectory.points[this.trajectory.points.length - 1];
+
+                // RK4 integration
+                const k1p = dt * (alpha * last.p - gamma * last.p * last.p + u * last.p * last.q);
+                const k1q = dt * (beta * last.q - delta * last.q * last.q + v * last.p * last.q);
+
+                const k2p = dt * (alpha * (last.p + k1p/2) - gamma * Math.pow(last.p + k1p/2, 2) + u * (last.p + k1p/2) * (last.q + k1q/2));
+                const k2q = dt * (beta * (last.q + k1q/2) - delta * Math.pow(last.q + k1q/2, 2) + v * (last.p + k1p/2) * (last.q + k1q/2));
+
+                const k3p = dt * (alpha * (last.p + k2p/2) - gamma * Math.pow(last.p + k2p/2, 2) + u * (last.p + k2p/2) * (last.q + k2q/2));
+                const k3q = dt * (beta * (last.q + k2q/2) - delta * Math.pow(last.q + k2q/2, 2) + v * (last.p + k2p/2) * (last.q + k2q/2));
+
+                const k4p = dt * (alpha * (last.p + k3p) - gamma * Math.pow(last.p + k3p, 2) + u * (last.p + k3p) * (last.q + k3q));
+                const k4q = dt * (beta * (last.q + k3q) - delta * Math.pow(last.q + k3q, 2) + v * (last.p + k3p) * (last.q + k3q));
+
+                const newP = Math.max(0, last.p + (k1p + 2*k2p + 2*k3p + k4p) / 6);
+                const newQ = Math.max(0, last.q + (k1q + 2*k2q + 2*k3q + k4q) / 6);
+
+                this.trajectory.points.push({ p: newP, q: newQ });
+                this.trajectory.time += dt;
+
+                this.timeData.time.push(this.trajectory.time);
+                this.timeData.p.push(newP);
+                this.timeData.q.push(newQ);
+
+                // Limit data size
+                if (this.timeData.time.length > 2000) {
+                    this.timeData.time.shift();
+                    this.timeData.p.shift();
+                    this.timeData.q.shift();
+                }
+
+                this.render();
+                this.drawTimeSeries();
+
+                if (this.trajectory.time < this.timeData.maxTime) {
+                    setTimeout(() => this.traceStep(), Math.max(1, 50 - this.params.speed * 4));
+                } else {
+                    this.isTracing = false;
+                    this.render();
+                }
+            }
+
+            reset() {
+                this.stopAnimation();
+                this.isTracing = false;
+                this.isPaused = false;
+                this.trajectory = null;
+                this.particles = [];
+
+                // Reset animation and trajectory states to stopped
+                this.flags.showAnimation = false;
+                this.flags.showTrajectory = false;
+
+                this.timeData = {
+                    time: [0],
+                    p: [1],
+                    q: [1],
+                    maxTime: 20
+                };
+
+                // Don't reset P(0), Q(0), Pmax, Qmax - leave them as user set them
+
+                this.hideError();
+                this.updateButtonStates();
+                this.render();
+                this.drawTimeSeries();
+            }
+
+            render() {
+                // Clear phase plot
+                this.phaseCtx.clearRect(0, 0, this.phaseCanvas.width, this.phaseCanvas.height);
+                this.phaseCtx.fillStyle = 'white';
+                this.phaseCtx.fillRect(0, 0, this.phaseCanvas.width, this.phaseCanvas.height);
+
+                // Draw everything in order
+                this.drawGrid();
+                this.drawAxes();
+                this.drawNullclines();
+                this.drawVectorField();
+                this.drawEquilibria();
+
+                if (this.flags.showAnimation || this.particles.length > 0) {
+                    this.drawParticles();
+                }
+
+                this.drawTrajectory();
+                this.drawInitialPoint();
+            }
+        }
+
+        // Initialize the application
+        const explorer = new LotkaVolterraExplorer();
+    </script>
+</body>
+</html>
