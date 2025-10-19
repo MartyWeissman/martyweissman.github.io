@@ -153,30 +153,35 @@ function loadLesson(lessonNumber) {
   // Clear the spreadsheet to start fresh
   clearSpreadsheet();
 
-  // Call the appropriate lesson module (all lessons are now loaded statically)
-  try {
-    if (lessonNumber === 1 && typeof Lesson1 !== "undefined") {
-      Lesson1.init();
-      showFeedback(`Lesson ${lessonNumber} loaded successfully!`, "success");
-    } else if (lessonNumber === 2 && typeof Lesson2 !== "undefined") {
-      Lesson2.init();
-      showFeedback(`Lesson ${lessonNumber} loaded successfully!`, "success");
-    } else if (lessonNumber === 3 && typeof Lesson3 !== "undefined") {
-      Lesson3.init();
-      showFeedback(`Lesson ${lessonNumber} loaded successfully!`, "success");
-    } else if (lessonNumber === 4 && typeof Lesson4 !== "undefined") {
-      Lesson4.init();
-      showFeedback(`Lesson ${lessonNumber} loaded successfully!`, "success");
-    } else if (lessonNumber === 5 && typeof Lesson5 !== "undefined") {
-      Lesson5.init();
-      showFeedback(`Lesson ${lessonNumber} loaded successfully!`, "success");
-    } else {
-      showFeedback(`Lesson ${lessonNumber} is not available yet.`, "error");
-    }
-  } catch (e) {
-    showFeedback(`Error loading lesson ${lessonNumber}: ${e.message}`, "error");
-    console.error("Lesson loading error:", e);
+  // Load the lesson script dynamically
+  const scriptId = `lesson-${lessonNumber}-script`;
+
+  // Remove existing lesson script if it exists
+  const existingScript = document.getElementById(scriptId);
+  if (existingScript) {
+    existingScript.remove();
   }
+
+  // Create and add the new script
+  const script = document.createElement("script");
+  script.id = scriptId;
+  script.src = `lesson-${lessonNumber}.js`;
+  script.onload = function () {
+    // Call the initLesson function if it exists globally
+    if (typeof window.initLesson === "function") {
+      window.initLesson();
+    } else {
+      showFeedback(
+        `Lesson ${lessonNumber} loaded but no initLesson function found.`,
+        "error",
+      );
+    }
+  };
+  script.onerror = function () {
+    showFeedback(`Lesson ${lessonNumber} is not available yet.`, "error");
+  };
+
+  document.body.appendChild(script);
 
   // Update active button in nav bar
   document.querySelectorAll(".lesson-button").forEach((btn) => {
