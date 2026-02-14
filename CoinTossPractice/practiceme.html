@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coin Flip Probabilities — Worksheet</title>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf8f4;
+    --card-bg: #ffffff;
+    --text: #2c2c2c;
+    --muted: #6b6b6b;
+    --accent: #1a5276;
+    --accent-light: #d4e6f1;
+    --border: #e0ddd6;
+    --section-fair: #1a5276;
+    --section-unfair: #7d3c98;
+    --unfair-light: #f4ecf7;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-hover: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem 1rem 4rem;
+  }
+  .container { max-width: 820px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 3rem; padding-bottom: 2rem; border-bottom: 2px solid var(--border); }
+  header h1 { font-family: 'Crimson Pro', serif; font-size: 2.4rem; font-weight: 700; color: var(--text); margin-bottom: 0.5rem; letter-spacing: -0.02em; }
+  header .subtitle { font-size: 1.05rem; color: var(--muted); max-width: 600px; margin: 0 auto; line-height: 1.5; }
+  .controls { display: flex; gap: 0.75rem; justify-content: center; margin-bottom: 2.5rem; flex-wrap: wrap; }
+  .controls button { font-family: 'Source Sans 3', sans-serif; font-size: 0.9rem; font-weight: 600; padding: 0.5rem 1.25rem; border-radius: 6px; border: 1.5px solid var(--border); background: var(--card-bg); color: var(--text); cursor: pointer; transition: all 0.2s; }
+  .controls button:hover { border-color: var(--accent); color: var(--accent); box-shadow: var(--shadow); }
+  .section-header { display: flex; align-items: center; gap: 0.75rem; margin: 2.5rem 0 1.25rem; }
+  .section-header .badge { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.3rem 0.75rem; border-radius: 4px; white-space: nowrap; }
+  .section-header.fair .badge { background: var(--accent-light); color: var(--section-fair); }
+  .section-header.unfair .badge { background: var(--unfair-light); color: var(--section-unfair); }
+  .section-header h2 { font-family: 'Crimson Pro', serif; font-size: 1.5rem; font-weight: 600; }
+  .section-header.fair h2 { color: var(--section-fair); }
+  .section-header.unfair h2 { color: var(--section-unfair); }
+  .section-note { font-size: 0.92rem; color: var(--muted); margin-bottom: 1.25rem; font-style: italic; font-family: 'Crimson Pro', serif; }
+  .problem { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem; margin-bottom: 0.75rem; box-shadow: var(--shadow); transition: box-shadow 0.2s; }
+  .problem:hover { box-shadow: var(--shadow-hover); }
+  .problem-top { display: flex; align-items: flex-start; gap: 1rem; }
+  .problem-number { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 500; color: var(--muted); background: var(--bg); border-radius: 4px; padding: 0.15rem 0.5rem; flex-shrink: 0; margin-top: 0.15rem; }
+  .problem.unfair .problem-number { color: var(--section-unfair); background: var(--unfair-light); }
+  .problem.fair .problem-number { color: var(--section-fair); background: var(--accent-light); }
+  .problem-text { font-family: 'Crimson Pro', serif; font-size: 1.12rem; line-height: 1.55; flex: 1; }
+  .problem-text .math { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; background: var(--bg); padding: 0.1rem 0.35rem; border-radius: 3px; color: var(--accent); }
+  .problem.unfair .problem-text .math { color: var(--section-unfair); }
+  .coin-info { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; color: var(--muted); background: var(--bg); padding: 0.2rem 0.5rem; border-radius: 3px; display: inline-block; margin-bottom: 0.35rem; }
+  .answer-section { margin-top: 0.85rem; padding-top: 0.85rem; border-top: 1px dashed var(--border); }
+  .reveal-btn { font-family: 'Source Sans 3', sans-serif; font-size: 0.85rem; font-weight: 600; color: var(--accent); background: none; border: 1.5px solid var(--accent); border-radius: 5px; padding: 0.3rem 0.9rem; cursor: pointer; transition: all 0.2s; }
+  .problem.unfair .reveal-btn { color: var(--section-unfair); border-color: var(--section-unfair); }
+  .reveal-btn:hover { background: var(--accent); color: white; }
+  .problem.unfair .reveal-btn:hover { background: var(--section-unfair); color: white; }
+  .reveal-btn.revealed { background: none; border-color: var(--muted); color: var(--muted); font-weight: 400; }
+  .answer-content { display: none; margin-top: 0.75rem; padding: 0.85rem 1rem; border-radius: 6px; animation: fadeIn 0.3s ease; }
+  .answer-content.visible { display: block; }
+  .problem.fair .answer-content { background: #f0f7fb; border-left: 3px solid var(--section-fair); }
+  .problem.unfair .answer-content { background: #faf5fc; border-left: 3px solid var(--section-unfair); }
+  .answer-value { font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; font-weight: 500; margin-bottom: 0.4rem; }
+  .problem.fair .answer-value { color: var(--section-fair); }
+  .problem.unfair .answer-value { color: var(--section-unfair); }
+  .answer-explanation { font-family: 'Crimson Pro', serif; font-size: 0.98rem; color: var(--muted); line-height: 1.55; }
+  .answer-explanation .math { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; background: rgba(255,255,255,0.6); padding: 0.1rem 0.3rem; border-radius: 3px; }
+  .answer-explanation .case-list { display: block; margin: 0.4rem 0; font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; letter-spacing: 0.02em; color: var(--text); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  footer { text-align: center; margin-top: 3rem; padding-top: 2rem; border-top: 2px solid var(--border); color: var(--muted); font-size: 0.85rem; font-family: 'Crimson Pro', serif; }
+  @media (max-width: 600px) { header h1 { font-size: 1.8rem; } .problem { padding: 1rem; } .problem-text { font-size: 1.05rem; } body { padding: 1.25rem 0.75rem 3rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Coin Flip Probabilities</h1>
+  <p class="subtitle">
+    24 problems on computing probabilities for coin-toss outcomes.
+    Work through each problem, then click <em>Show Answer</em> to check your reasoning.
+  </p>
+</header>
+
+<div class="controls">
+  <button onclick="revealAll()">Show All Answers</button>
+  <button onclick="hideAll()">Hide All Answers</button>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SECTION 1: FAIR COIN                        -->
+<!-- ═══════════════════════════════════════════ -->
+
+<div class="section-header fair">
+  <span class="badge">Part I</span>
+  <h2>Fair Coin</h2>
+</div>
+<p class="section-note">All problems in this section use a fair coin: P(H) = P(T) = 0.5.</p>
+
+<!-- Problem 1 -->
+<div class="problem fair" id="p1">
+  <div class="problem-top">
+    <span class="problem-number">01</span>
+    <div class="problem-text">You flip a fair coin once. What is <span class="math">P(H)</span>?</div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p1')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(H) = 0.5</div>
+      <div class="answer-explanation">A fair coin has two equally likely outcomes. Heads is one of them, so the probability is <span class="math">0.5</span> (50%).</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 2 -->
+<div class="problem fair" id="p2">
+  <div class="problem-top">
+    <span class="problem-number">02</span>
+    <div class="problem-text">You flip a fair coin once. What is <span class="math">P(T)</span>?</div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p2')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(T) = 0.5</div>
+      <div class="answer-explanation">By the same reasoning as Problem 1 — or by the complement rule: <span class="math">P(T) = 1 − P(H) = 1 − 0.5 = 0.5</span>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 3 -->
+<div class="problem fair" id="p3">
+  <div class="problem-top">
+    <span class="problem-number">03</span>
+    <div class="problem-text">You flip a fair coin twice. What is the probability of getting <span class="math">HT</span> in that exact order?</div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p3')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(HT) = 0.25</div>
+      <div class="answer-explanation">The flips are independent, so <span class="math">P(HT) = P(H) × P(T) = 0.5 × 0.5 = 0.25</span>. You can also see this by listing all 4 equally likely outcomes for two flips:
+        <span class="case-list">HH &nbsp; HT &nbsp; TH &nbsp; TT</span>
+        HT is 1 of the 4, so the probability is 0.25.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 4 -->
+<div class="problem fair" id="p4">
+  <div class="problem-top">
+    <span class="problem-number">04</span>
+    <div class="problem-text">You flip a fair coin twice. What is <span class="math">P(HH)</span>?</div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p4')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(HH) = 0.25</div>
+      <div class="answer-explanation"><span class="math">P(HH) = 0.5 × 0.5 = 0.25</span>. Same reasoning as Problem 3 — each specific ordered outcome of two fair-coin flips has probability 0.25.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 5 -->
+<div class="problem fair" id="p5">
+  <div class="problem-top">
+    <span class="problem-number">05</span>
+    <div class="problem-text">You flip a fair coin three times. What is the probability of getting <span class="math">HHT</span> in that exact order?</div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p5')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(HHT) = 0.125</div>
+      <div class="answer-explanation"><span class="math">0.5 × 0.5 × 0.5 = 0.125</span>. With three flips there are <span class="math">2 × 2 × 2 = 8</span> equally likely ordered outcomes, and HHT is one of them. So 1 out of 8 = 0.125.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 6 -->
+<div class="problem fair" id="p6">
+  <div class="problem-top">
+    <span class="problem-number">06</span>
+    <div class="problem-text">You flip a fair coin three times. What is the probability of getting <span class="math">THH</span> in that exact order?</div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p6')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(THH) = 0.125</div>
+      <div class="answer-explanation">Every specific ordered sequence of three fair-coin flips has the same probability: <span class="math">0.5 × 0.5 × 0.5 = 0.125</span>. The order of H's and T's doesn't affect the probability of any one specific sequence.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 7 -->
+<div class="problem fair" id="p7">
+  <div class="problem-top">
+    <span class="problem-number">07</span>
+    <div class="problem-text">You flip a fair coin three times. What is the probability of getting <em>exactly</em> two heads (in any order)?</div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p7')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(exactly 2 H in 3 flips) = 0.375</div>
+      <div class="answer-explanation">List out all the sequences with exactly 2 heads:
+        <span class="case-list">HHT &nbsp; HTH &nbsp; THH</span>
+        That's 3 favorable outcomes out of 8 total. Each has probability 0.125, so <span class="math">3 × 0.125 = 0.375</span>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 8 -->
+<div class="problem fair" id="p8">
+  <div class="problem-top">
+    <span class="problem-number">08</span>
+    <div class="problem-text">You flip a fair coin three times. What is the probability of getting <em>exactly</em> one head?</div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p8')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(exactly 1 H in 3 flips) = 0.375</div>
+      <div class="answer-explanation">List out all the sequences with exactly 1 head:
+        <span class="case-list">HTT &nbsp; THT &nbsp; TTH</span>
+        That's 3 favorable outcomes. So <span class="math">3 × 0.125 = 0.375</span>. Notice this is the same answer as Problem 7! With a fair coin, "exactly k heads" and "exactly k tails" always have the same probability.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 9 (tricky) -->
+<div class="problem fair" id="p9">
+  <div class="problem-top">
+    <span class="problem-number">09</span>
+    <div class="problem-text">You flip a fair coin five times. What is the probability that your <em>last</em> flip is heads?</div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p9')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(last flip is H) = 0.5</div>
+      <div class="answer-explanation">Each flip is independent — the coin doesn't "remember" what happened before. The last flip is just a single fair coin flip, so <span class="math">P(H) = 0.5</span> regardless of how many flips came before it.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 10 -->
+<div class="problem fair" id="p10">
+  <div class="problem-top">
+    <span class="problem-number">10</span>
+    <div class="problem-text">You flip a fair coin three times. What is the probability of getting <em>at least</em> one head?</div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p10')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(at least 1 H in 3 flips) = 0.875</div>
+      <div class="answer-explanation">Use the complement: the only way to get <em>zero</em> heads is TTT, which has probability <span class="math">0.5 × 0.5 × 0.5 = 0.125</span>. So <span class="math">P(at least 1 H) = 1 − 0.125 = 0.875</span>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 11 -->
+<div class="problem fair" id="p11">
+  <div class="problem-top">
+    <span class="problem-number">11</span>
+    <div class="problem-text">You flip a fair coin four times. What is the probability of getting <em>at least</em> two heads?</div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p11')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(at least 2 H in 4 flips) = 0.6875</div>
+      <div class="answer-explanation">Use the complement: subtract the probability of 0 or 1 heads from 1. With 4 flips there are <span class="math">2 × 2 × 2 × 2 = 16</span> equally likely outcomes, each with probability 0.0625.<br><br>
+        <strong>0 heads:</strong> just one outcome — TTTT. That's <span class="math">1 × 0.0625 = 0.0625</span>.<br><br>
+        <strong>1 head:</strong> the single H can appear in any of the 4 positions:
+        <span class="case-list">HTTT &nbsp; THTT &nbsp; TTHT &nbsp; TTTH</span>
+        That's <span class="math">4 × 0.0625 = 0.25</span>.<br><br>
+        So <span class="math">P(at least 2 H) = 1 − 0.0625 − 0.25 = 0.6875</span>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 12 -->
+<div class="problem fair" id="p12">
+  <div class="problem-top">
+    <span class="problem-number">12</span>
+    <div class="problem-text">You flip a fair coin five times. What is the probability of getting <em>exactly</em> three heads?</div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p12')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(exactly 3 H in 5 flips) = 0.3125</div>
+      <div class="answer-explanation">With 5 flips there are <span class="math">2 × 2 × 2 × 2 × 2 = 32</span> equally likely outcomes. We need to count how many have exactly 3 heads. List them by thinking about where the 2 tails go:
+        <span class="case-list">HHHTT &nbsp; HHTHT &nbsp; HHTTH &nbsp; HTHHT &nbsp; HTHTH</span>
+        <span class="case-list">HTTHH &nbsp; THHHT &nbsp; THHTH &nbsp; THTHH &nbsp; TTHHH</span>
+        That's 10 outcomes. Each has probability <span class="math">1/32 = 0.03125</span>, so <span class="math">10 × 0.03125 = 0.3125</span>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SECTION 2: UNFAIR COIN                      -->
+<!-- ═══════════════════════════════════════════ -->
+
+<div class="section-header unfair">
+  <span class="badge">Part II</span>
+  <h2>Unfair Coins</h2>
+</div>
+<p class="section-note">Each problem specifies its own P(H). The coin is biased — heads and tails are no longer equally likely!</p>
+
+<!-- Problem 13 -->
+<div class="problem unfair" id="p13">
+  <div class="problem-top">
+    <span class="problem-number">13</span>
+    <div class="problem-text">
+      <span class="coin-info">P(H) = 0.7</span><br>
+      You flip this coin once. What is <span class="math">P(H)</span>?
+    </div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p13')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(H) = 0.7</div>
+      <div class="answer-explanation">This is given directly! The problem is a warm-up to make sure you read the setup: the coin's probability of heads is <span class="math">0.7</span> (70%).</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 14 -->
+<div class="problem unfair" id="p14">
+  <div class="problem-top">
+    <span class="problem-number">14</span>
+    <div class="problem-text">
+      <span class="coin-info">P(H) = 0.7</span><br>
+      You flip this coin once. What is <span class="math">P(T)</span>?
+    </div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p14')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(T) = 0.3</div>
+      <div class="answer-explanation"><span class="math">P(T) = 1 − P(H) = 1 − 0.7 = 0.3</span>. The complement rule works for unfair coins too: the probabilities of all outcomes must add to 1.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 15 -->
+<div class="problem unfair" id="p15">
+  <div class="problem-top">
+    <span class="problem-number">15</span>
+    <div class="problem-text">
+      <span class="coin-info">P(H) = 0.75</span><br>
+      You flip this coin twice. What is the probability of getting <span class="math">HT</span> in that exact order?
+    </div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p15')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(HT) = 0.1875</div>
+      <div class="answer-explanation">The flips are independent: <span class="math">P(HT) = P(H) × P(T) = 0.75 × 0.25 = 0.1875</span>. Notice that with an unfair coin, the four possible outcomes (HH, HT, TH, TT) are <em>not</em> equally likely!</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 16 -->
+<div class="problem unfair" id="p16">
+  <div class="problem-top">
+    <span class="problem-number">16</span>
+    <div class="problem-text">
+      <span class="coin-info">P(H) = 0.8</span><br>
+      You flip this coin twice. What is <span class="math">P(HH)</span>?
+    </div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p16')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(HH) = 0.64</div>
+      <div class="answer-explanation"><span class="math">P(HH) = 0.8 × 0.8 = 0.64</span>. With a strongly biased coin, two heads in a row is actually quite likely — a 64% chance!</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 17 -->
+<div class="problem unfair" id="p17">
+  <div class="problem-top">
+    <span class="problem-number">17</span>
+    <div class="problem-text">
+      <span class="coin-info">P(H) = 0.6</span><br>
+      You flip this coin twice. What is the probability of getting <em>exactly</em> one head (in any order)?
+    </div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p17')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(exactly 1 H in 2 flips) = 0.48</div>
+      <div class="answer-explanation">Exactly one head means HT or TH. With an unfair coin we compute each separately:
+        <span class="case-list">P(HT) = 0.6 × 0.4 = 0.24</span>
+        <span class="case-list">P(TH) = 0.4 × 0.6 = 0.24</span>
+        These are mutually exclusive outcomes, so we add: <span class="math">0.24 + 0.24 = 0.48</span>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 18 -->
+<div class="problem unfair" id="p18">
+  <div class="problem-top">
+    <span class="problem-number">18</span>
+    <div class="problem-text">
+      <span class="coin-info">P(H) = 0.7</span><br>
+      You flip this coin three times. What is the probability of getting <em>exactly</em> two heads?
+    </div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p18')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(exactly 2 H in 3 flips) = 0.441</div>
+      <div class="answer-explanation">List the sequences with exactly 2 heads and compute each probability:
+        <span class="case-list">P(HHT) = 0.7 × 0.7 × 0.3 = 0.147</span>
+        <span class="case-list">P(HTH) = 0.7 × 0.3 × 0.7 = 0.147</span>
+        <span class="case-list">P(THH) = 0.3 × 0.7 × 0.7 = 0.147</span>
+        Each sequence has the same probability (because multiplication can be done in any order), and there are 3 of them: <span class="math">3 × 0.147 = 0.441</span>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 19 -->
+<div class="problem unfair" id="p19">
+  <div class="problem-top">
+    <span class="problem-number">19</span>
+    <div class="problem-text">
+      <span class="coin-info">P(H) = 0.2</span><br>
+      You flip this coin three times. What is the probability of getting <em>at least</em> one head?
+    </div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p19')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(at least 1 H in 3 flips) = 0.488</div>
+      <div class="answer-explanation">Use the complement: <span class="math">P(at least 1 H) = 1 − P(no heads) = 1 − P(TTT)</span>.<br><br>
+        <span class="math">P(TTT) = 0.8 × 0.8 × 0.8 = 0.512</span><br><br>
+        So <span class="math">P(at least 1 H) = 1 − 0.512 = 0.488</span>. Even with a coin that only lands heads 20% of the time, three flips give you a nearly 50/50 shot at seeing at least one head!</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 20 -->
+<div class="problem unfair" id="p20">
+  <div class="problem-top">
+    <span class="problem-number">20</span>
+    <div class="problem-text">
+      <span class="coin-info">P(H) = 0.75</span><br>
+      You flip this coin four times. What is the probability that <em>all four</em> flips are tails?
+    </div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p20')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(TTTT) ≈ 0.0039</div>
+      <div class="answer-explanation"><span class="math">P(TTTT) = 0.25 × 0.25 × 0.25 × 0.25 = 0.00390625</span>. When heads is very likely (75%), getting four tails in a row is extremely rare — less than a 0.4% chance!</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 21 (tricky) -->
+<div class="problem unfair" id="p21">
+  <div class="problem-top">
+    <span class="problem-number">21</span>
+    <div class="problem-text">
+      <span class="coin-info">P(H) = 0.8</span><br>
+      You flip this coin six times. What is the probability that your <em>last</em> flip is heads?
+    </div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p21')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(last flip is H) = 0.8</div>
+      <div class="answer-explanation">Same idea as Problem 9! Each flip is independent — the coin doesn't know or care what happened on flips 1 through 5. The last flip is just a single toss of this coin, so <span class="math">P = 0.8</span>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 22 -->
+<div class="problem unfair" id="p22">
+  <div class="problem-top">
+    <span class="problem-number">22</span>
+    <div class="problem-text">
+      <span class="coin-info">P(H) = 0.6</span><br>
+      You flip this coin four times. What is the probability of getting <em>exactly</em> three heads?
+    </div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p22')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(exactly 3 H in 4 flips) = 0.3456</div>
+      <div class="answer-explanation">List the sequences with exactly 3 heads — the single T can go in any of the 4 positions:
+        <span class="case-list">P(HHHT) = 0.6 × 0.6 × 0.6 × 0.4 = 0.0864</span>
+        <span class="case-list">P(HHTH) = 0.6 × 0.6 × 0.4 × 0.6 = 0.0864</span>
+        <span class="case-list">P(HTHH) = 0.6 × 0.4 × 0.6 × 0.6 = 0.0864</span>
+        <span class="case-list">P(THHH) = 0.4 × 0.6 × 0.6 × 0.6 = 0.0864</span>
+        All 4 have the same probability, so <span class="math">4 × 0.0864 = 0.3456</span>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 23 -->
+<div class="problem unfair" id="p23">
+  <div class="problem-top">
+    <span class="problem-number">23</span>
+    <div class="problem-text">
+      <span class="coin-info">P(H) = 0.25</span><br>
+      You flip this coin four times. What is the probability of getting <em>at least</em> two heads?
+    </div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p23')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(at least 2 H in 4 flips) ≈ 0.2617</div>
+      <div class="answer-explanation">Use the complement: subtract P(0 heads) and P(1 head) from 1.<br><br>
+        <strong>0 heads:</strong> <span class="math">P(TTTT) = 0.75 × 0.75 × 0.75 × 0.75 ≈ 0.3164</span>.<br><br>
+        <strong>1 head:</strong> The single H can go in any of the 4 positions:
+        <span class="case-list">HTTT &nbsp; THTT &nbsp; TTHT &nbsp; TTTH</span>
+        Each has probability <span class="math">0.25 × 0.75 × 0.75 × 0.75 ≈ 0.1055</span>. There are 4 such sequences, so <span class="math">4 × 0.1055 ≈ 0.4219</span>.<br><br>
+        <span class="math">P(at least 2 H) = 1 − 0.3164 − 0.4219 ≈ 0.2617</span>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem 24 -->
+<div class="problem unfair" id="p24">
+  <div class="problem-top">
+    <span class="problem-number">24</span>
+    <div class="problem-text">
+      <span class="coin-info">P(H) ≈ 0.333</span><br>
+      You flip this coin five times. What is the probability of getting <em>exactly</em> four heads?
+    </div>
+  </div>
+  <div class="answer-section">
+    <button class="reveal-btn" onclick="toggle('p24')">Show Answer</button>
+    <div class="answer-content">
+      <div class="answer-value">P(exactly 4 H in 5 flips) ≈ 0.0412</div>
+      <div class="answer-explanation">The single T can go in any of the 5 positions:
+        <span class="case-list">HHHHT &nbsp; HHHTH &nbsp; HHTHH &nbsp; HTHHH &nbsp; THHHH</span>
+        Each sequence has the same probability:
+        <span class="case-list">0.333 × 0.333 × 0.333 × 0.333 × 0.667 ≈ 0.00823</span>
+        There are 5 such sequences, so <span class="math">5 × 0.00823 ≈ 0.0412</span>. Getting 4 heads out of 5 flips with a coin that only lands heads about a third of the time is quite unlikely — about a 4% chance.</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Coin Flip Probabilities Worksheet &middot; Math 16A
+</footer>
+
+</div>
+
+<script>
+function toggle(id) {
+  const problem = document.getElementById(id);
+  const content = problem.querySelector('.answer-content');
+  const btn = problem.querySelector('.reveal-btn');
+  if (content.classList.contains('visible')) {
+    content.classList.remove('visible');
+    btn.textContent = 'Show Answer';
+    btn.classList.remove('revealed');
+  } else {
+    content.classList.add('visible');
+    btn.textContent = 'Hide Answer';
+    btn.classList.add('revealed');
+  }
+}
+function revealAll() {
+  document.querySelectorAll('.answer-content').forEach(el => el.classList.add('visible'));
+  document.querySelectorAll('.reveal-btn').forEach(btn => { btn.textContent = 'Hide Answer'; btn.classList.add('revealed'); });
+}
+function hideAll() {
+  document.querySelectorAll('.answer-content').forEach(el => el.classList.remove('visible'));
+  document.querySelectorAll('.reveal-btn').forEach(btn => { btn.textContent = 'Show Answer'; btn.classList.remove('revealed'); });
+}
+</script>
+</body>
+</html>
