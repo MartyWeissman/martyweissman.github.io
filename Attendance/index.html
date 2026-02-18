@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Attendance Code</title>
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                background: #f0f4f8;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                padding: 1rem;
+            }
+            .card {
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+                padding: 2.5rem 2rem;
+                max-width: 420px;
+                width: 100%;
+                text-align: center;
+            }
+            h1 {
+                font-size: 1.5rem;
+                color: #1a202c;
+                margin-bottom: 0.4rem;
+            }
+            .subtitle {
+                color: #718096;
+                font-size: 0.95rem;
+                margin-bottom: 2rem;
+                line-height: 1.5;
+            }
+            .btn {
+                background: #4a90d9;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 0.8rem 2rem;
+                font-size: 1.05rem;
+                cursor: pointer;
+                transition: background 0.15s;
+            }
+            .btn:hover {
+                background: #357abd;
+            }
+            .code-box {
+                display: none;
+                margin-top: 2rem;
+            }
+            .code-label {
+                font-size: 0.8rem;
+                color: #718096;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                margin-bottom: 0.5rem;
+            }
+            .code {
+                font-family: "Courier New", Courier, monospace;
+                font-size: 2.2rem;
+                font-weight: bold;
+                letter-spacing: 0.15em;
+                color: #1a202c;
+                background: #edf2f7;
+                border-radius: 8px;
+                padding: 0.75rem 1rem;
+            }
+            .timestamp {
+                margin-top: 0.75rem;
+                font-size: 0.82rem;
+                color: #a0aec0;
+            }
+            .warning {
+                margin-top: 1.25rem;
+                font-size: 0.85rem;
+                color: #744210;
+                background: #fffaf0;
+                border: 1px solid #f6ad55;
+                border-radius: 6px;
+                padding: 0.6rem 0.9rem;
+                line-height: 1.4;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h1>Attendance</h1>
+            <p class="subtitle">
+                Click the button to generate your unique attendance code.<br />
+                Write it down and submit it on Canvas.
+            </p>
+            <button class="btn" id="btn" onclick="generate()">
+                Get My Code
+            </button>
+            <div class="code-box" id="codeBox">
+                <div class="code-label">Your Attendance Code</div>
+                <div class="code" id="codeDisplay"></div>
+                <div class="timestamp" id="tsDisplay"></div>
+                <div class="warning">
+                    Write this down carefully. Your code is unique — do not
+                    share it.
+                </div>
+            </div>
+        </div>
+        <script>
+            var SECRET = "psych101-fall2026";
+
+            // 32 unambiguous characters: A-Z minus I and O, plus digits 2-9
+            var ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+            function base32Encode(bytes) {
+                var result = "";
+                var buf = 0;
+                var bits = 0;
+                for (var i = 0; i < bytes.length; i++) {
+                    buf = (buf << 8) | bytes[i];
+                    bits += 8;
+                    while (bits >= 5) {
+                        bits -= 5;
+                        result += ALPHABET[(buf >>> bits) & 0x1f];
+                        buf = buf & ((1 << bits) - 1);
+                    }
+                }
+                if (bits > 0) {
+                    result += ALPHABET[(buf << (5 - bits)) & 0x1f];
+                }
+                return result;
+            }
+
+            // Generate n keystream bytes using SHA-256.
+            // Each byte is the first byte of SHA-256(SECRET:salt:i).
+            // Uses only standard string operations - identical output in any language.
+            async function keystream(salt, n) {
+                var enc = new TextEncoder();
+                var bytes = [];
+                for (var i = 0; i < n; i++) {
+                    var input = SECRET + ":" + salt + ":" + i;
+                    var hashBuf = await crypto.subtle.digest(
+                        "SHA-256",
+                        enc.encode(input),
+                    );
+                    bytes.push(new Uint8Array(hashBuf)[0]);
+                }
+                return bytes;
+            }
+
+            async function generate() {
+                var btn = document.getElementById("btn");
+                btn.disabled = true;
+                btn.textContent = "Generating...";
+
+                try {
+                    // 4-byte unix timestamp
+                    var nowSec = Math.floor(Date.now() / 1000);
+                    var t0 = (nowSec >>> 24) & 0xff;
+                    var t1 = (nowSec >>> 16) & 0xff;
+                    var t2 = (nowSec >>> 8) & 0xff;
+                    var t3 = nowSec & 0xff;
+
+                    // 1-byte random salt
+                    var saltArr = new Uint8Array(1);
+                    crypto.getRandomValues(saltArr);
+                    var salt = saltArr[0];
+
+                    // XOR plaintext with keystream
+                    var plain = [t0, t1, t2, t3, salt];
+                    var ks = await keystream(salt, 5);
+                    var cipher = [
+                        plain[0] ^ ks[0],
+                        plain[1] ^ ks[1],
+                        plain[2] ^ ks[2],
+                        plain[3] ^ ks[3],
+                        plain[4] ^ ks[4],
+                    ];
+
+                    // Packed: [salt (plaintext), cipher[0..4]] = 6 bytes
+                    var packed = [
+                        salt,
+                        cipher[0],
+                        cipher[1],
+                        cipher[2],
+                        cipher[3],
+                        cipher[4],
+                    ];
+
+                    // Base32: 6 bytes -> 10 chars, displayed as XXXXX-XXXXX
+                    var encoded = base32Encode(packed);
+                    var code = encoded.slice(0, 5) + "-" + encoded.slice(5, 10);
+
+                    document.getElementById("codeDisplay").textContent = code;
+                    document.getElementById("tsDisplay").textContent =
+                        "Generated: " +
+                        new Date(nowSec * 1000).toLocaleString();
+                    document.getElementById("codeBox").style.display = "block";
+                } catch (err) {
+                    console.error("Code generation failed:", err);
+                    alert(
+                        "Something went wrong. Please reload the page and try again.",
+                    );
+                }
+
+                btn.textContent = "Get My Code";
+                btn.disabled = false;
+            }
+        </script>
+    </body>
+</html>
