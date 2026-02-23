@@ -137,13 +137,13 @@
             }
 
             // Generate n keystream bytes using SHA-256.
-            // Each byte is the first byte of SHA-256(SECRET:salt:i).
+            // Each byte is the first byte of SHA-256(SECRET:salt0:salt1:i).
             // Uses only standard string operations - identical output in any language.
-            async function keystream(salt, n) {
+            async function keystream(salt0, salt1, n) {
                 var enc = new TextEncoder();
                 var bytes = [];
                 for (var i = 0; i < n; i++) {
-                    var input = SECRET + ":" + salt + ":" + i;
+                    var input = SECRET + ":" + salt0 + ":" + salt1 + ":" + i;
                     var hashBuf = await crypto.subtle.digest(
                         "SHA-256",
                         enc.encode(input),
@@ -166,14 +166,17 @@
                     var t2 = (nowSec >>> 8) & 0xff;
                     var t3 = nowSec & 0xff;
 
-                    // 1-byte random salt
-                    var saltArr = new Uint8Array(1);
+                    // 2-byte random salt (65536 values — makes accidental
+                    // duplicate codes across the class essentially impossible)
+                    var saltArr = new Uint8Array(2);
                     crypto.getRandomValues(saltArr);
-                    var salt = saltArr[0];
+                    var salt0 = saltArr[0];
+                    var salt1 = saltArr[1];
 
-                    // XOR plaintext with keystream
-                    var plain = [t0, t1, t2, t3, salt];
-                    var ks = await keystream(salt, 5);
+                    // XOR plaintext with keystream.
+                    // plain[4] = salt0 repeated as an integrity-check word.
+                    var plain = [t0, t1, t2, t3, salt0];
+                    var ks = await keystream(salt0, salt1, 5);
                     var cipher = [
                         plain[0] ^ ks[0],
                         plain[1] ^ ks[1],
@@ -182,9 +185,10 @@
                         plain[4] ^ ks[4],
                     ];
 
-                    // Packed: [salt (plaintext), cipher[0..4]] = 6 bytes
+                    // Packed: [salt0, salt1 (plaintext), cipher[0..4]] = 7 bytes
                     var packed = [
-                        salt,
+                        salt0,
+                        salt1,
                         cipher[0],
                         cipher[1],
                         cipher[2],
@@ -192,9 +196,9 @@
                         cipher[4],
                     ];
 
-                    // Base32: 6 bytes -> 10 chars, displayed as XXXXX-XXXXX
+                    // Base32: 7 bytes -> 12 chars, displayed as XXXXXX-XXXXXX
                     var encoded = base32Encode(packed);
-                    var code = encoded.slice(0, 5) + "-" + encoded.slice(5, 10);
+                    var code = encoded.slice(0, 6) + "-" + encoded.slice(6, 12);
 
                     document.getElementById("codeDisplay").textContent = code;
                     document.getElementById("tsDisplay").textContent =
