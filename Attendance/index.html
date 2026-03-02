@@ -89,6 +89,16 @@
                 padding: 0.6rem 0.9rem;
                 line-height: 1.4;
             }
+            .session-error {
+                margin-bottom: 1.5rem;
+                font-size: 0.95rem;
+                font-weight: 600;
+                color: #742a2a;
+                background: #fff5f5;
+                border: 1px solid #fc8181;
+                border-radius: 6px;
+                padding: 0.75rem 1rem;
+            }
         </style>
     </head>
     <body>
@@ -98,6 +108,9 @@
                 Click the button to generate your unique attendance code.<br />
                 Write it down and submit it on Canvas.
             </p>
+            <div class="session-error" id="sessionWarning" style="display: none">
+                Missing session code — please scan the QR code from class.
+            </div>
             <button class="btn" id="btn" onclick="generate()">
                 Get My Code
             </button>
@@ -112,7 +125,10 @@
             </div>
         </div>
         <script>
-            var SECRET = "psych101-fall2026";
+            var SECRET = "math16-win2026";
+            var _sp = new URLSearchParams(window.location.search);
+            var SESSION = _sp.get("s") || "";
+            var EFFECTIVE_SECRET = SESSION ? SECRET + ":" + SESSION : SECRET;
 
             // 32 unambiguous characters: A-Z minus I and O, plus digits 2-9
             var ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -143,7 +159,7 @@
                 var enc = new TextEncoder();
                 var bytes = [];
                 for (var i = 0; i < n; i++) {
-                    var input = SECRET + ":" + salt0 + ":" + salt1 + ":" + i;
+                    var input = EFFECTIVE_SECRET + ":" + salt0 + ":" + salt1 + ":" + i;
                     var hashBuf = await crypto.subtle.digest(
                         "SHA-256",
                         enc.encode(input),
@@ -215,6 +231,14 @@
                 btn.textContent = "Get My Code";
                 btn.disabled = false;
             }
+            (function () {
+                if (!SESSION) {
+                    document.getElementById("sessionWarning").style.display =
+                        "block";
+                    document.getElementById("btn").disabled = true;
+                }
+            })();
         </script>
     </body>
 </html>
+
